@@ -331,7 +331,8 @@ Todas las variables deben estar presentes en `appsettings.Development.json` para
 
 **Juan Litterini**
 - GitHub: [@JLitte](https://github.com/JLitte)
-- Rol: Desarrollador Full Stack
+- Rol: Desarrollador - Estudiante
+- I.T.E.S - Santa Rosa, La Pampa.
 
 ---
 

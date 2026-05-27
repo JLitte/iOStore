@@ -1,0 +1,87 @@
+﻿@model List<iOStore.Models.Categoria>
+@{
+    ViewData["Title"] = "Categorías";
+    Layout = "/Views/Shared/_Layout.Admin.cshtml";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold"><i class="bi bi-tags me-2 text-primary"></i>Categorías</h3>
+    <a asp-action="Crear" class="btn btn-primary">
+        <i class="bi bi-plus-lg me-2"></i>Nueva categoría
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" id="categoriasTable">
+            <thead>
+                <tr>
+                    <th>Ícono</th>
+                    <th>Nombre</th>
+                    <th>Descripción</th>
+                    <th class="text-center">Productos</th>
+                    <th class="text-center">Estado</th>
+                    <th class="text-center">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var c in Model)
+                {
+                    <tr>
+                        <td class="text-center fs-4"><i class="@c.Icono" style="color:var(--accent);"></i></td>
+                        <td style="font-weight:var(--weight-semibold);">@c.Nombre</td>
+                        <td class="text-muted" style="font-size:var(--text-xs);">@(c.Descripcion ?? "—")</td>
+                        <td class="text-center">
+                            <span class="badge badge-neutral">@c.ProductoCategorias.Count</span>
+                        </td>
+                        <td class="text-center">
+                            @if (c.Activa)
+                            {
+                                <span class="badge badge-success">Activa</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-neutral">Inactiva</span>
+                            }
+                        </td>
+                        <td class="text-center">
+                            <div class="d-flex gap-1 justify-content-center">
+                                <a asp-action="Editar" asp-route-id="@c.Id" class="btn btn-ghost btn-sm">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <form asp-action="Eliminar" asp-route-id="@c.Id" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <button class="btn btn-danger-ghost btn-sm"
+                                            data-confirm="¿Eliminar categoría @c.Nombre?"
+                                            @(c.ProductoCategorias.Any() ? "disabled title=\"Tiene productos asignados\"" : "")>
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                @if (!Model.Any())
+                {
+                    <tr><td colspan="6" class="text-center text-muted py-4">No hay categorías cargadas.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $('#categoriasTable').DataTable({
+            language: { search: "Buscar:", searchPlaceholder: "Filtrar..." },
+            columnDefs: [{ orderable: false, targets: [0, 5] }]
+        });
+        document.querySelectorAll('[data-confirm]').forEach(btn => {
+            btn.addEventListener('click', async function (e) {
+                e.preventDefault();
+                const ok = await confirmDialog(this.dataset.confirm, 'Esta acción no se puede deshacer.');
+                if (ok) this.closest('form').submit();
+            });
+        });
+    </script>
+}

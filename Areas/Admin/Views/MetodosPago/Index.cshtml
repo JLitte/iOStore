@@ -1,0 +1,197 @@
+@model List<iOStore.Models.MetodoPago>
+@using iOStore.Models
+@{
+    ViewData["Title"] = "Métodos de Pago";
+    Layout = "/Views/Shared/_Layout.Admin.cshtml";
+
+    string TipoLabel(TipoMetodoPago t) => t switch {
+        TipoMetodoPago.Credito          => "Crédito",
+        TipoMetodoPago.Debito           => "Débito",
+        TipoMetodoPago.Transferencia    => "Transferencia",
+        TipoMetodoPago.BilleteraDigital => "Billetera",
+        TipoMetodoPago.Efectivo         => "Efectivo",
+        _                               => t.ToString()
+    };
+    string TipoColor(TipoMetodoPago t) => t switch {
+        TipoMetodoPago.Credito          => "#1e40af",
+        TipoMetodoPago.Debito           => "#065f46",
+        TipoMetodoPago.Transferencia    => "#5b21b6",
+        TipoMetodoPago.BilleteraDigital => "#b45309",
+        TipoMetodoPago.Efectivo         => "#374151",
+        _                               => "#6b7280"
+    };
+    string MonedaLabel(string m) => m switch {
+        "USD_CaraGrande" => "USD Blue",
+        "USD_CaraChica"  => "USD +5%",
+        "USD_Tarjeta"    => "USD Tarjeta",
+        "USDT"           => "USDT",
+        _                => "ARS"
+    };
+    string MonedaColor(string m) => m switch {
+        "USD_CaraGrande" => "#166534",
+        "USD_CaraChica"  => "#166534",
+        "USD_Tarjeta"    => "#9a3412",
+        "USDT"           => "#1e40af",
+        _                => "#374151"
+    };
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold"><i class="bi bi-credit-card me-2 text-primary"></i>Métodos de pago</h3>
+    <a asp-action="Create" class="btn btn-primary">
+        <i class="bi bi-plus-lg me-2"></i>Nuevo método
+    </a>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        @TempData["Success"] <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" id="tablaMetodos">
+            <thead>
+                <tr>
+                    <th style="width:40px;"></th>
+                    <th>Nombre</th>
+                    <th>Tipo</th>
+                    <th>Moneda</th>
+                    <th>Banco</th>
+                    <th class="text-center">Cuotas</th>
+                    <th class="text-center">Recargo</th>
+                    <th class="text-center">Estado</th>
+                    <th class="text-center">Orden</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="sortableBody">
+                @foreach (var mp in Model)
+                {
+                    <tr data-id="@mp.Id" style="cursor:grab;">
+                        <td style="color:var(--text-muted);font-size:16px;cursor:grab;" title="Arrastrar para reordenar">
+                            <i class="bi bi-grip-vertical"></i>
+                        </td>
+                        <td>
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                @if (!string.IsNullOrEmpty(mp.LogoUrl))
+                                {
+                                    <img src="@mp.LogoUrl" alt="" style="height:22px;width:auto;object-fit:contain;" />
+                                }
+                                <span style="font-weight:600;font-size:13px;">@mp.Nombre</span>
+                            </div>
+                            @if (!string.IsNullOrEmpty(mp.Descripcion))
+                            {
+                                <div style="font-size:11px;color:var(--text-muted);">@mp.Descripcion</div>
+                            }
+                        </td>
+                        <td>
+                            <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;
+                                         background:@(TipoColor(mp.Tipo))18;color:@TipoColor(mp.Tipo);">
+                                @TipoLabel(mp.Tipo)
+                            </span>
+                        </td>
+                        <td>
+                            <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;
+                                         background:@(MonedaColor(mp.TipoMoneda))18;color:@MonedaColor(mp.TipoMoneda);">
+                                @MonedaLabel(mp.TipoMoneda)
+                            </span>
+                        </td>
+                        <td style="font-size:12px;">@(mp.Banco ?? "—")</td>
+                        <td class="text-center" style="font-size:13px;">
+                            @(mp.Cuotas > 1 ? $"hasta {mp.Cuotas}" : "1")
+                        </td>
+                        <td class="text-center">
+                            @if (mp.RecargoPorc > 0)
+                            {
+                                <span style="font-size:12px;background:#fff3cd;color:#856404;border-radius:6px;padding:2px 7px;">
+                                    +@mp.RecargoPorc.ToString("0.##")%
+                                </span>
+                            }
+                            else
+                            {
+                                <span style="font-size:12px;color:var(--text-muted);">Sin recargo</span>
+                            }
+                        </td>
+                        <td class="text-center">
+                            <button class="btn btn-sm btn-toggle-mp" data-id="@mp.Id"
+                                    style="border-radius:20px;font-size:11px;padding:2px 12px;
+                                           background:@(mp.Activo ? "#e8f5e9" : "#fce4ec");
+                                           color:@(mp.Activo ? "#1b5e20" : "#b71c1c");border:none;">
+                                @(mp.Activo ? "Activo" : "Inactivo")
+                            </button>
+                        </td>
+                        <td class="text-center orden-display" style="font-size:12px;color:var(--text-muted);">@mp.Orden</td>
+                        <td class="text-end" style="white-space:nowrap;">
+                            <a asp-action="Edit" asp-route-id="@mp.Id" class="btn btn-sm btn-outline-secondary me-1">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form asp-action="Delete" asp-route-id="@mp.Id" method="post" style="display:inline;">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-outline-warning me-1"
+                                        onclick="return confirm('¿Desactivar este método de pago?');"
+                                        title="Desactivar (ocultar del checkout)">
+                                    <i class="bi bi-eye-slash"></i>
+                                </button>
+                            </form>
+                            <form asp-action="Eliminar" asp-route-id="@mp.Id" method="post" style="display:inline;">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-outline-danger"
+                                        onclick="return confirm('⚠️ ¿Eliminar permanentemente «@mp.Nombre»?\n\nEsta acción no se puede deshacer. Los pedidos existentes que usaron este método quedarán sin método de pago asignado.');"
+                                        title="Eliminar permanentemente">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+    <script>
+        // Toggle activo
+        document.querySelectorAll('.btn-toggle-mp').forEach(btn => {
+            btn.addEventListener('click', async function () {
+                const id = this.dataset.id;
+                const tok = document.querySelector('input[name=__RequestVerificationToken]')?.value ?? '';
+                const resp = await fetch(`/Admin/MetodosPago/Toggle/${id}`, {
+                    method: 'POST',
+                    headers: { 'RequestVerificationToken': tok }
+                });
+                const data = await resp.json();
+                if (data.ok) {
+                    this.textContent = data.activo ? 'Activo' : 'Inactivo';
+                    this.style.background = data.activo ? '#e8f5e9' : '#fce4ec';
+                    this.style.color      = data.activo ? '#1b5e20' : '#b71c1c';
+                }
+            });
+        });
+
+        // Drag & drop reordenar
+        Sortable.create(document.getElementById('sortableBody'), {
+            animation: 150,
+            handle: 'td:first-child',
+            onEnd: async function () {
+                const rows  = [...document.querySelectorAll('#sortableBody tr')];
+                const items = rows.map((tr, i) => ({ id: parseInt(tr.dataset.id), orden: i }));
+                // Actualizar displays
+                rows.forEach((tr, i) => { tr.querySelector('.orden-display').textContent = i; });
+
+                await fetch('/Admin/MetodosPago/Reordenar', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': document.querySelector('input[name=__RequestVerificationToken]')?.value ?? ''
+                    },
+                    body: JSON.stringify(items)
+                });
+            }
+        });
+    </script>
+}

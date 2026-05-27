@@ -1,0 +1,25 @@
+@{
+    ViewData["Title"] = "Acceso denegado";
+}
+
+<div class="text-center" style="padding:var(--sp-12) 0;">
+    <div style="font-size:4rem;color:var(--danger);margin-bottom:var(--sp-4);">
+        <i class="bi bi-shield-x"></i>
+    </div>
+    <div style="font-size:64px;font-weight:var(--weight-bold);letter-spacing:-.04em;
+                color:var(--text-primary);line-height:1;margin-bottom:var(--sp-2);">
+        403
+    </div>
+    <h2 style="font-size:var(--text-xl);font-weight:var(--weight-semibold);margin-bottom:var(--sp-2);">Acceso denegado</h2>
+    <p style="font-size:var(--text-base);color:var(--text-muted);max-width:400px;margin:0 auto var(--sp-8);">
+        No tenés permisos para acceder a esta sección.
+    </p>
+    <div class="d-flex gap-3 justify-content-center">
+        <a asp-controller="Home" asp-action="Index" class="btn btn-primary">
+            <i class="bi bi-house me-2"></i>Ir al inicio
+        </a>
+        <a asp-controller="Producto" asp-action="Catalogo" class="btn btn-ghost">
+            Ver catálogo
+        </a>
+    </div>
+</div>

@@ -1,0 +1,162 @@
+@using iOStore.Helpers
+@model PaginatedList<iOStore.Models.Producto>
+@{
+    ViewData["Title"] = "Gestión de Productos";
+    bool isAdmin = User.IsInRole(Roles.Administrador) || User.IsInRole(Roles.AdminEmpleado);
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 style="font-size:var(--text-xl);font-weight:var(--weight-bold);letter-spacing:-.02em;margin:0;">
+        <i class="bi bi-box-seam me-2" style="color:var(--accent);"></i>Gestión de productos
+    </h2>
+    @if (isAdmin)
+    {
+        <a asp-action="Create" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-lg me-2"></i>Nuevo producto
+        </a>
+    }
+</div>
+
+<!-- Búsqueda -->
+<form asp-action="Index" method="get" class="mb-4 d-flex gap-2">
+    <div class="input-group" style="max-width:320px;">
+        <span class="input-group-text"><i class="bi bi-search"></i></span>
+        <input type="text" name="buscar" value="@ViewBag.Buscar"
+               class="form-control" placeholder="Buscar por modelo o tipo..." />
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm">Buscar</button>
+    @if (!string.IsNullOrEmpty(ViewBag.Buscar as string))
+    {
+        <a asp-action="Index" class="btn btn-ghost btn-sm">Limpiar</a>
+    }
+</form>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="productosTable">
+                <thead>
+                    <tr>
+                        <th style="width:60px;">Img</th>
+                        <th>Tipo</th>
+                        <th>Modelo</th>
+                        <th>Precio</th>
+                        <th>Stock</th>
+                        <th>Categorías</th>
+                        <th>Estado</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in Model)
+                    {
+                        <tr style="@(!p.Activo ? "opacity:.55;" : "")">
+                            <td>
+                                <img src="@(p.ImagenUrl ?? "/images/no-image.png")"
+                                     width="48" height="48"
+                                     class="rounded"
+                                     style="object-fit:cover;"
+                                     alt="@p.Modelo" />
+                            </td>
+                            <td>
+                                <span class="badge badge-neutral">
+                                    @p.TipoProducto
+                                </span>
+                            </td>
+                            <td style="font-weight:var(--weight-semibold);font-size:var(--text-sm);">@p.Modelo</td>
+                            <td style="font-weight:var(--weight-semibold);color:var(--accent);">
+                                $@p.Precio.ToString("N0")
+                            </td>
+                            <td>
+                                <span class="badge @(p.Stock <= 3 ? "badge-danger" : p.Stock <= 10 ? "badge-warning" : "badge-success")">
+                                    @p.Stock
+                                </span>
+                            </td>
+                            <td style="font-size:var(--text-xs);">
+                                @foreach (var pc in p.ProductoCategorias)
+                                {
+                                    <span class="badge badge-neutral" style="margin-right:2px;">
+                                        @pc.Categoria?.Nombre
+                                    </span>
+                                }
+                            </td>
+                            <td>
+                                @if (p.Activo)
+                                {
+                                    <span class="badge badge-success">Activo</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-neutral">Inactivo</span>
+                                }
+                            </td>
+                            <td class="text-center">
+                                <div class="d-flex gap-1 justify-content-center">
+                                    <a asp-action="Details" asp-route-id="@p.Id"
+                                       class="btn btn-ghost btn-sm" title="Ver">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a asp-action="Edit" asp-route-id="@p.Id"
+                                       class="btn btn-ghost btn-sm" title="Editar">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <a asp-action="Delete" asp-route-id="@p.Id"
+                                       class="btn btn-danger-ghost btn-sm" title="Eliminar">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Any())
+                    {
+                        <tr>
+                            <td colspan="8" class="text-center py-5"
+                                style="color:var(--text-muted);">
+                                <i class="bi bi-box-seam" style="font-size:2rem;display:block;margin-bottom:var(--sp-2);"></i>
+                                No hay productos cargados.
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@if (Model.TotalPages > 1)
+{
+    <nav class="mt-3">
+        <ul class="pagination pagination-sm justify-content-center">
+            <li class="page-item @(!Model.HasPreviousPage ? "disabled" : "")">
+                <a class="page-link" asp-action="Index"
+                   asp-route-pagina="@(Model.PageIndex - 1)"
+                   asp-route-buscar="@ViewBag.Buscar">&laquo;</a>
+            </li>
+            @for (int i = 1; i <= Model.TotalPages; i++)
+            {
+                <li class="page-item @(i == Model.PageIndex ? "active" : "")">
+                    <a class="page-link" asp-action="Index"
+                       asp-route-pagina="@i"
+                       asp-route-buscar="@ViewBag.Buscar">@i</a>
+                </li>
+            }
+            <li class="page-item @(!Model.HasNextPage ? "disabled" : "")">
+                <a class="page-link" asp-action="Index"
+                   asp-route-pagina="@(Model.PageIndex + 1)"
+                   asp-route-buscar="@ViewBag.Buscar">&raquo;</a>
+            </li>
+        </ul>
+    </nav>
+}
+
+@section Scripts {
+    <script>
+        $('#productosTable').DataTable({
+            paging: false,
+            info: false,
+            language: { search: "Filtrar:", searchPlaceholder: "Buscar en tabla..." },
+            columnDefs: [{ orderable: false, targets: [0, 7] }]
+        });
+    </script>
+}

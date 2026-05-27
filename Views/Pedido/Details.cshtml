@@ -1,0 +1,844 @@
+@using iOStore.Helpers
+@using iOStore.Models
+@model iOStore.Models.Pedido
+@{
+    ViewData["Title"] = $"Pedido {Model.NumeroSeguimiento ?? $"#{Model.Id}"}";
+    bool isAdmin = User.IsInRole(Roles.Administrador) || User.IsInRole(Roles.AdminEmpleado);
+    var timeline          = (List<TimelineItem>)ViewBag.Timeline;
+    var estadosSiguientes = (IReadOnlyList<EstadoPedido>)ViewBag.EstadosSiguientes;
+    string telefonoWa     = (Model.TelefonoCliente ?? "").TrimStart('+').Replace(" ", "");
+    var notificaciones    = isAdmin ? (List<NotificacionPedido>)(ViewBag.Notificaciones ?? new List<NotificacionPedido>()) : new List<NotificacionPedido>();
+    var ediciones         = isAdmin ? (List<PedidoEdicion>)(ViewBag.Ediciones ?? new List<PedidoEdicion>()) : new List<PedidoEdicion>();
+    var metodosPago       = isAdmin ? (List<MetodoPago>)(ViewBag.MetodosPago ?? new List<MetodoPago>()) : new List<MetodoPago>();
+
+    // Campos editables con label y tipo de input
+    var camposEditables = new[] {
+        ("DireccionEnvio",           "Dirección de envío",        "text"),
+        ("CodigoPostal",             "Código postal",             "text"),
+        ("TransportistaSeleccionado","Transportista",             "text"),
+        ("NombreCliente",            "Nombre del cliente",        "text"),
+        ("EmailCliente",             "Email del cliente",         "email"),
+        ("TelefonoCliente",          "Teléfono del cliente",      "text"),
+        ("ReferenciaPago",           "Referencia de pago",        "text"),
+        ("Observaciones",            "Observaciones",             "text"),
+        ("MetodoPagoId",             "Método de pago",            "select"),
+        ("CuotasSeleccionadas",      "Cuotas seleccionadas",      "number"),
+        ("TotalConRecargo",          "Total a cobrar",            "number"),
+    };
+}
+
+<!-- Header -->
+<div class="d-flex align-items-center gap-3 mb-1 flex-wrap">
+    <a asp-action="Index" class="btn btn-ghost btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Volver
+    </a>
+    @if (isAdmin)
+    {
+        <a asp-action="DescargarOrdenPdf" asp-route-id="@Model.Id"
+           class="btn btn-sm" style="background:#f5f5f7;color:#1d1d1f;border:1px solid var(--border-light);border-radius:8px;padding:5px 12px;font-size:12px;text-decoration:none;"
+           target="_blank">
+            <i class="bi bi-file-earmark-pdf me-1" style="color:#cc2b2b;"></i>Descargar PDF
+        </a>
+    }
+    <div>
+        <div style="font-size:var(--text-2xl);font-weight:var(--weight-bold);letter-spacing:-.03em;line-height:1.1;">
+            @(Model.NumeroSeguimiento ?? $"Pedido #{Model.Id}")
+        </div>
+        <div class="mt-1">
+            <span class="badge badge-@FormatHelper.BadgeEstado(Model.EstadoActual)"
+                  style="font-size:var(--text-xs);padding:5px 12px;border-radius:980px;">
+                @FormatHelper.DisplayEstado(Model.EstadoActual)
+            </span>
+            <span style="font-size:var(--text-xs);color:var(--text-muted);margin-left:8px;">
+                <i class="bi bi-calendar3 me-1"></i>@Model.FechaPedido.ToString("dd/MM/yyyy HH:mm")
+            </span>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mt-1">
+
+    <!-- ── Columna principal (productos + timeline) ─────────────────── -->
+    <div class="col-lg-8">
+
+        <!-- Detalle del pedido -->
+        <div class="card mb-3">
+            <div class="card-body p-0">
+                <div style="padding:var(--sp-4) var(--sp-6);border-bottom:1px solid var(--border-light);">
+                    <span style="font-weight:var(--weight-semibold);font-size:var(--text-sm);">
+                        <i class="bi bi-bag me-2"></i>Productos del pedido
+                    </span>
+                </div>
+                <table class="table mb-0">
+                    @{
+                        // Para distribuir el Total ARS entre los productos en proporción a su precio USD
+                        var totalSubUSD = Model.PedidoDetalles.Sum(d => d.Subtotal);
+                        bool esUSDPago  = Model.TipoMonedaPago is "USD_CaraGrande" or "USD_CaraChica" or "USDT";
+                        bool hayRecargo = Model.RecargoAplicadoPorc > 0;
+                        decimal costoEnvioEfect = Model.CostoEnvioEfectivo;
+                        decimal totalFinal = Model.TotalConRecargo + (Model.EsEnvioGratis || costoEnvioEfect == 0 ? 0 : costoEnvioEfect);
+                    }
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th class="text-center">Cant.</th>
+                            <th class="text-end">Precio unit. (USD)</th>
+                            <th class="text-end">Subtotal (ARS)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var det in Model.PedidoDetalles)
+                        {
+                            // Subtotal por fila en ARS: proporcional al Total base en ARS
+                            decimal subARS = esUSDPago
+                                ? det.Subtotal   // USD directo
+                                : (totalSubUSD > 0
+                                    ? Math.Round(det.Subtotal / totalSubUSD * Model.Total, 0)
+                                    : 0);
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center gap-3">
+                                        @if (!string.IsNullOrEmpty(det.Producto?.ImagenUrl))
+                                        {
+                                            <img src="@det.Producto.ImagenUrl" width="44" height="44"
+                                                 class="rounded" style="object-fit:cover;" />
+                                        }
+                                        <div>
+                                            <div style="font-weight:var(--weight-semibold);font-size:var(--text-sm);">@det.Producto?.Modelo</div>
+                                            <div style="font-size:var(--text-xs);color:var(--text-muted);">@det.Producto?.TipoProducto</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="text-center" style="font-weight:var(--weight-medium);">@det.Cantidad</td>
+                                <td class="text-end" style="font-size:var(--text-xs);color:var(--text-muted);">USD @det.PrecioUnitario.ToString("N2")</td>
+                                <td class="text-end" style="font-weight:var(--weight-semibold);">
+                                    @(esUSDPago ? $"USD {subARS:N2}" : $"${subARS:N0}")
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot>
+                        @if (!esUSDPago)
+                        {
+                            <tr style="border-top:1px solid var(--border-light);">
+                                <td colspan="3" class="text-end" style="font-size:var(--text-xs);color:var(--text-muted);padding-top:8px;">Subtotal productos (ARS)</td>
+                                <td class="text-end" style="padding-top:8px;">$@Model.Total.ToString("N0")</td>
+                            </tr>
+                            @if (hayRecargo)
+                            {
+                                <tr>
+                                    <td colspan="3" class="text-end" style="font-size:var(--text-xs);color:var(--text-muted);">Recargo financiero (@Model.RecargoAplicadoPorc.ToString("0.##")%)</td>
+                                    <td class="text-end" style="color:#856404;">+$@Model.RecargoAplicado.ToString("N0")</td>
+                                </tr>
+                            }
+                            <tr>
+                                <td colspan="3" class="text-end" style="font-size:var(--text-xs);color:var(--text-muted);">Envío</td>
+                                <td class="text-end" style="color:var(--success);">
+                                    @(Model.EsEnvioGratis || costoEnvioEfect == 0 ? "Gratis" : $"${costoEnvioEfect:N0}")
+                                </td>
+                            </tr>
+                        }
+                        <tr style="border-top:2px solid var(--border-light);">
+                            <td colspan="3" class="text-end"
+                                style="font-weight:var(--weight-bold);font-size:var(--text-xs);padding-top:12px;">
+                                TOTAL A PAGAR
+                            </td>
+                            <td class="text-end"
+                                style="font-weight:var(--weight-bold);font-size:var(--text-lg);color:var(--success);padding-top:12px;">
+                                @if (esUSDPago)
+                                {
+                                    <text>USD @((Model.PrecioFinalUSD ?? Model.TotalConRecargo).ToString("N2"))</text>
+                                }
+                                else
+                                {
+                                    <text>$@totalFinal.ToString("N0")</text>
+                                }
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        @if (isAdmin)
+        {
+            <!-- Panel de costo de envío (Admin) -->
+            var costoEfectivo = Model.CostoEnvioEfectivo;
+            var esRetiro      = Model.TransportistaSeleccionado == "Retiro en sucursal";
+            <div class="card mb-3" id="panelCostoEnvio">
+                <div class="card-body p-0">
+                    <div style="padding:var(--sp-4) var(--sp-6);border-bottom:1px solid var(--border-light);display:flex;justify-content:space-between;align-items:center;">
+                        <span style="font-weight:var(--weight-semibold);font-size:var(--text-sm);">
+                            <i class="bi bi-truck me-2"></i>Costo de envío
+                        </span>
+                        @if (Model.CostoEnvioAdmin.HasValue)
+                        {
+                            <span class="badge" style="background:#fff3cd;color:#856404;font-size:11px;border-radius:20px;padding:4px 10px;">
+                                ✏ Ajustado por Admin
+                            </span>
+                        }
+                    </div>
+                    <div style="padding:var(--sp-4) var(--sp-6);">
+                        <!-- Valor estimado automático -->
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                            <span style="font-size:var(--text-xs);color:var(--text-muted);">Estimado automáticamente:</span>
+                            <span style="font-size:var(--text-sm);font-weight:var(--weight-medium);">
+                                @if (esRetiro || Model.EsEnvioGratis)
+                                {
+                                    <span style="color:var(--success);">@(esRetiro ? "Retiro en sucursal — sin cargo" : "Envío gratis")</span>
+                                }
+                                else if (Model.CostoEnvio == 0 && !Model.CostoEnvioAdmin.HasValue)
+                                {
+                                    <span style="color:var(--text-muted);">Sin tarifa configurada para CP @(Model.CodigoPostal ?? "—")</span>
+                                }
+                                else
+                                {
+                                    <text>$@Model.CostoEnvio.ToString("N0") ARS</text>
+                                }
+                            </span>
+                        </div>
+
+                        <!-- Valor ajustado si existe -->
+                        @if (Model.CostoEnvioAdmin.HasValue)
+                        {
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                                <span style="font-size:var(--text-xs);color:var(--text-muted);">✏ Ajustado por Admin:</span>
+                                <span style="font-size:var(--text-sm);font-weight:var(--weight-bold);color:var(--accent);">
+                                    $@Model.CostoEnvioAdmin.Value.ToString("N0") ARS
+                                </span>
+                            </div>
+                            @if (!string.IsNullOrEmpty(Model.NotaEnvioAdmin))
+                            {
+                                <div style="font-size:var(--text-xs);color:var(--text-muted);background:var(--surface,#f5f5f7);border-radius:8px;padding:6px 10px;margin-bottom:8px;">
+                                    <i class="bi bi-chat-text me-1"></i>@Model.NotaEnvioAdmin
+                                </div>
+                            }
+                        }
+
+                        <!-- Formulario de ajuste -->
+                        <div style="border-top:1px solid var(--border-light);margin-top:12px;padding-top:12px;">
+                            <div style="font-size:var(--text-xs);font-weight:var(--weight-semibold);text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:8px;">
+                                Ajustar costo
+                            </div>
+                            <div style="display:flex;gap:8px;margin-bottom:8px;">
+                                <div style="flex:1;">
+                                    <label style="font-size:11px;color:var(--text-muted);">Nuevo costo de envío ($)</label>
+                                    <input type="number" id="inputNuevoCosto" class="form-control form-control-sm" min="0" step="100"
+                                           value="@costoEfectivo.ToString("0")" placeholder="0" />
+                                </div>
+                            </div>
+                            <div style="margin-bottom:8px;">
+                                <label style="font-size:11px;color:var(--text-muted);">Motivo del ajuste <span style="color:var(--danger);">*</span></label>
+                                <textarea id="inputNotaEnvio" class="form-control form-control-sm" rows="2"
+                                          placeholder="Ej: CP sin tarifa, tarifa real del transportista..."></textarea>
+                                <div id="notaEnvioError" style="font-size:11px;color:var(--danger);display:none;margin-top:2px;"></div>
+                            </div>
+                            <button type="button" class="btn btn-primary btn-sm w-100" onclick="guardarAjusteEnvio()">
+                                <i class="bi bi-save me-1"></i>Guardar y notificar al cliente
+                            </button>
+                            <div id="ajusteEnvioResultado" style="display:none;font-size:12px;margin-top:6px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cancelar pedido y reponer stock -->
+            @if (Model.EstadoActual == EstadoPedido.Pendiente)
+            {
+                <div class="card mb-3" style="border:1px solid var(--danger,#dc3545);">
+                    <div class="card-body">
+                        <h6 class="card-section-title" style="color:var(--danger,#dc3545);">
+                            <i class="bi bi-x-circle me-1"></i>Cancelación de pedido
+                        </h6>
+                        <p style="font-size:var(--text-xs);color:var(--text-muted);margin-bottom:12px;">
+                            Cancela el pedido y devuelve el stock automáticamente. Esta acción no se puede deshacer.
+                        </p>
+                        <form asp-action="CancelarYReponerStock" method="post"
+                              onsubmit="return confirm('¿Confirmás la cancelación del pedido @(Model.NumeroSeguimiento ?? $"#{Model.Id}")? El stock será repuesto automáticamente.')">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="pedidoId" value="@Model.Id" />
+                            <button type="submit" class="btn btn-sm btn-danger w-100">
+                                <i class="bi bi-x-circle me-1"></i>Cancelar pedido y reponer stock
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            }
+
+            <!-- Corrección de datos del pedido -->
+            <div class="card mb-3">
+                <div class="card-body p-0">
+                    <div style="padding:var(--sp-4) var(--sp-6);border-bottom:1px solid var(--border-light);">
+                        <span style="font-weight:var(--weight-semibold);font-size:var(--text-sm);">
+                            <i class="bi bi-pencil-square me-2"></i>Corrección de datos
+                        </span>
+                    </div>
+                    <table class="table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Campo</th>
+                                <th>Valor actual</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var (campo, label, tipo) in camposEditables)
+                            {
+                                string valorActual = campo switch {
+                                    "DireccionEnvio"            => Model.DireccionEnvio ?? "—",
+                                    "CodigoPostal"              => Model.CodigoPostal ?? "—",
+                                    "TransportistaSeleccionado" => Model.TransportistaSeleccionado ?? "—",
+                                    "NombreCliente"             => Model.NombreCliente ?? "—",
+                                    "EmailCliente"              => Model.EmailCliente ?? "—",
+                                    "TelefonoCliente"           => Model.TelefonoCliente ?? "—",
+                                    "ReferenciaPago"            => Model.ReferenciaPago ?? "—",
+                                    "Observaciones"             => Model.Observaciones ?? "—",
+                                    "MetodoPagoId"              => Model.MetodoPago?.Nombre ?? (Model.MetodoPagoId?.ToString() ?? "—"),
+                                    "CuotasSeleccionadas"       => Model.CuotasSeleccionadas.ToString(),
+                                    "TotalConRecargo"           =>
+                                        // USD billete (CaraGrande / CaraChica): mostrar en dólares
+                                        (Model.TipoMonedaPago == "USD_CaraGrande" || Model.TipoMonedaPago == "USD_CaraChica") && Model.PrecioFinalUSD.GetValueOrDefault() > 0
+                                            ? "USD " + Model.PrecioFinalUSD.GetValueOrDefault().ToString("N2") +
+                                              (Model.TipoCambioAplicado.GetValueOrDefault() > 0
+                                                  ? " (TC $" + Model.TipoCambioAplicado.GetValueOrDefault().ToString("N0") +
+                                                    " = $" + (Model.PrecioFinalUSD.GetValueOrDefault() * Model.TipoCambioAplicado.GetValueOrDefault()).ToString("N0") + ")"
+                                                  : "")
+                                        // USD Tarjeta → cobrado en ARS al tipo tarjeta
+                                        : Model.TipoMonedaPago == "USD_Tarjeta"
+                                            ? "$" + Model.TotalConRecargo.ToString("N0") +
+                                              (Model.TipoCambioAplicado.GetValueOrDefault() > 0
+                                                  ? " (cotización tarjeta $" + Model.TipoCambioAplicado.GetValueOrDefault().ToString("N0") + ")"
+                                                  : "")
+                                        // Crédito ARS → tienda recibe el Total sin recargo bancario
+                                        : Model.MetodoPago?.Tipo == TipoMetodoPago.Credito
+                                            ? "$" + Model.Total.ToString("N0") +
+                                              (Model.RecargoAplicado > 0
+                                                  ? " (recargo $" + Model.RecargoAplicado.ToString("N0") + " al banco)"
+                                                  : "")
+                                        // Resto (débito, efectivo, transferencia) → TotalConRecargo
+                                        : "$" + Model.TotalConRecargo.ToString("N0"),
+                                    _                           => "—"
+                                };
+                                <tr>
+                                    <td style="font-size:var(--text-xs);color:var(--text-muted);">@label</td>
+                                    <td id="val-@campo" style="font-size:var(--text-sm);font-weight:var(--weight-medium);">@valorActual</td>
+                                    <td class="text-end">
+                                        <button type="button" class="btn btn-sm btn-ghost"
+                                                style="font-size:11px;padding:2px 8px;"
+                                                onclick="abrirEditarCampo('@campo', '@label', '@tipo', this.closest('tr').querySelector('[id]').textContent.trim())">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Historial de correcciones -->
+            @if (ediciones.Any())
+            {
+                <div class="card mb-3">
+                    <div class="card-body p-0">
+                        <div style="padding:var(--sp-3) var(--sp-6);border-bottom:1px solid var(--border-light);">
+                            <span style="font-weight:var(--weight-semibold);font-size:var(--text-sm);">
+                                <i class="bi bi-journal-text me-2"></i>Historial de correcciones
+                            </span>
+                        </div>
+                        <table class="table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Campo</th>
+                                    <th>Anterior</th>
+                                    <th>Nuevo</th>
+                                    <th>Editor</th>
+                                    <th>Motivo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var ed in ediciones)
+                                {
+                                    <tr style="font-size:var(--text-xs);">
+                                        <td style="color:var(--text-muted);">@ed.Fecha.ToString("dd/MM/yy HH:mm")</td>
+                                        <td style="font-weight:var(--weight-medium);">@ed.Campo</td>
+                                        <td style="color:var(--text-muted);text-decoration:line-through;">@(ed.ValorAnterior ?? "—")</td>
+                                        <td style="color:var(--success);font-weight:var(--weight-medium);">@(ed.ValorNuevo ?? "—")</td>
+                                        <td>@ed.Editor?.NombreCompleto</td>
+                                        <td style="color:var(--text-muted);">@ed.Motivo</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+        }
+
+        <!-- Timeline del historial -->
+        <div class="card">
+            <div class="card-body p-0">
+                <div style="padding:var(--sp-4) var(--sp-6);border-bottom:1px solid var(--border-light);">
+                    <span style="font-weight:var(--weight-semibold);font-size:var(--text-sm);">
+                        <i class="bi bi-clock-history me-2"></i>Historial de actividad
+                    </span>
+                </div>
+                <div style="padding:var(--sp-4) var(--sp-6);">
+                    @if (!timeline.Any())
+                    {
+                        <p style="color:var(--text-muted);font-size:var(--text-sm);text-align:center;padding:var(--sp-6) 0;margin:0;">
+                            <i class="bi bi-hourglass" style="display:block;font-size:1.8rem;margin-bottom:var(--sp-2);"></i>
+                            Sin movimientos aún.
+                        </p>
+                    }
+                    else
+                    {
+                        <div class="pedido-timeline">
+                            @foreach (var item in timeline)
+                            {
+                                bool esMovimiento = item.Tipo == "movimiento";
+                                <div class="timeline-item">
+                                    <div class="timeline-icon @(esMovimiento ? "timeline-icon-estado" : "timeline-icon-contacto")">
+                                        @if (esMovimiento)
+                                        {
+                                            <i class="bi bi-arrow-left-right"></i>
+                                        }
+                                        else if (item.TipoContacto == "WhatsApp")
+                                        {
+                                            <i class="bi bi-whatsapp"></i>
+                                        }
+                                        else if (item.TipoContacto == "Email")
+                                        {
+                                            <i class="bi bi-envelope"></i>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-telephone"></i>
+                                        }
+                                    </div>
+                                    <div class="timeline-body">
+                                        <div class="timeline-desc">@item.Descripcion</div>
+                                        <div class="timeline-meta">
+                                            <span><i class="bi bi-person me-1"></i>@item.EmpleadoNombre</span>
+                                            <span><i class="bi bi-clock me-1"></i>@item.Fecha.ToString("dd/MM/yyyy HH:mm")</span>
+                                            @if (!esMovimiento && item.Exitoso.HasValue)
+                                            {
+                                                if (item.Exitoso.Value)
+                                                {
+                                                    <span class="badge badge-success" style="font-size:10px;">Exitoso</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge badge-secondary" style="font-size:10px;">Sin respuesta</span>
+                                                }
+                                            }
+                                        </div>
+                                        @if (!string.IsNullOrEmpty(item.Observacion))
+                                        {
+                                            <div class="timeline-obs">
+                                                <i class="bi bi-chat-text me-1"></i>@item.Observacion
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Columna lateral ──────────────────────────────────────────── -->
+    <div class="col-lg-4">
+
+        <!-- Datos del cliente -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <h6 class="card-section-title"><i class="bi bi-person me-1"></i>Cliente</h6>
+                <div style="font-weight:var(--weight-semibold);margin-bottom:4px;">
+                    @(Model.NombreCliente ?? Model.Usuario?.NombreCompleto)
+                </div>
+                <div style="font-size:var(--text-xs);color:var(--text-muted);margin-bottom:2px;">
+                    <i class="bi bi-envelope me-1"></i>@(Model.EmailCliente ?? Model.Usuario?.Email)
+                </div>
+                @if (!string.IsNullOrEmpty(Model.TelefonoCliente ?? Model.Usuario?.Telefono))
+                {
+                    <div style="font-size:var(--text-xs);color:var(--text-muted);margin-bottom:4px;">
+                        <i class="bi bi-telephone me-1"></i>@(Model.TelefonoCliente ?? Model.Usuario?.Telefono)
+                    </div>
+                }
+                @if (!string.IsNullOrEmpty(Model.DireccionEnvio))
+                {
+                    <div style="font-size:var(--text-xs);">
+                        <i class="bi bi-geo-alt me-1" style="color:var(--accent);"></i>@Model.DireccionEnvio
+                    </div>
+                }
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(Model.Observaciones))
+        {
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h6 class="card-section-title"><i class="bi bi-chat-text me-1"></i>Observaciones</h6>
+                    <div style="font-size:var(--text-xs);">@Model.Observaciones</div>
+                </div>
+            </div>
+        }
+
+        @if (isAdmin)
+        {
+            <!-- Panel de contacto con el cliente -->
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h6 class="card-section-title">
+                        <i class="bi bi-chat-dots me-1"></i>Contactar al cliente
+                    </h6>
+                    <div class="d-flex gap-2 mb-3 flex-wrap">
+                        <button type="button"
+                                class="btn btn-sm btn-outline-secondary flex-fill"
+                                onclick="abrirModalContacto('Telefono')">
+                            <i class="bi bi-telephone me-1"></i>Teléfono
+                        </button>
+                        <button type="button"
+                                class="btn btn-sm btn-success flex-fill"
+                                onclick="abrirWhatsApp('@telefonoWa')">
+                            <i class="bi bi-whatsapp me-1"></i>WhatsApp
+                        </button>
+                        <button type="button"
+                                class="btn btn-sm btn-outline-primary flex-fill"
+                                onclick="abrirModalContacto('Email')">
+                            <i class="bi bi-envelope me-1"></i>Email
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Historial de notificaciones automáticas -->
+            @if (notificaciones.Any())
+            {
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6 class="card-section-title">
+                            <i class="bi bi-envelope-check me-1"></i>Emails enviados al cliente
+                        </h6>
+                        <div style="max-height:180px;overflow-y:auto;">
+                            @foreach (var n in notificaciones)
+                            {
+                                <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-top:1px solid var(--border-light);">
+                                    <span style="font-size:11px;">
+                                        <i class="bi bi-@(n.Enviado ? "check-circle-fill text-success" : "x-circle-fill text-danger") me-1"></i>
+                                        @n.TipoMensaje
+                                    </span>
+                                    <span style="font-size:10px;color:var(--text-muted);">@n.FechaIntento.ToString("dd/MM HH:mm")</span>
+                                </div>
+                                @if (!n.Enviado && !string.IsNullOrEmpty(n.ErrorDetalle))
+                                {
+                                    <div style="font-size:10px;color:var(--danger);padding:2px 0 4px 20px;">@n.ErrorDetalle</div>
+                                }
+                            }
+                        </div>
+                        <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">
+                            <i class="bi bi-info-circle me-1"></i>Los emails se envían automáticamente en cada cambio de estado.
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+<!-- Modal editar campo -->
+@if (isAdmin)
+{
+    @Html.AntiForgeryToken()
+    <div class="modal fade" id="modalEditarCampo" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-pencil-square me-2"></i>Editar campo: <span id="editCampoLabel"></span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="editCampoNombre" />
+
+                    <div class="mb-3" id="editInputWrap">
+                        <label class="form-label" style="font-size:var(--text-xs);">Nuevo valor</label>
+                        <input id="editInputText" class="form-control form-control-sm" />
+                        <select id="editInputSelect" class="form-select form-select-sm" style="display:none;">
+                            @foreach (var mp in metodosPago)
+                            {
+                                <option value="@mp.Id">@mp.Nombre (@mp.TipoMoneda)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label" style="font-size:var(--text-xs);">Motivo de la corrección <span style="color:var(--danger);">*</span></label>
+                        <textarea id="editMotivo" class="form-control form-control-sm" rows="2"
+                                  placeholder="Mínimo 10 caracteres..."></textarea>
+                        <div id="editMotivoError" class="text-danger" style="font-size:11px;display:none;"></div>
+                    </div>
+                    <div id="editResultado" style="display:none;font-size:var(--text-xs);"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="btnGuardarEdicion"
+                            onclick="guardarEdicion()">
+                        <i class="bi bi-save me-1"></i>Guardar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal registro de contacto -->
+@if (isAdmin)
+{
+    @Html.AntiForgeryToken()
+    <div class="modal fade" id="modalContacto" tabindex="-1" aria-labelledby="modalContactoLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form asp-action="RegistrarContacto" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="pedidoId" value="@Model.Id" />
+                    <input type="hidden" name="tipoContacto" id="modalTipoContacto" value="" />
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalContactoLabel">
+                            <i class="bi bi-chat-dots me-2"></i>Registrar contacto
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <p id="modalContactoDesc" style="font-size:var(--text-sm);color:var(--text-muted);margin:0;"></p>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="exitoso" value="true"
+                                   id="checkExitoso" />
+                            <label class="form-check-label" for="checkExitoso">
+                                ¿El contacto fue exitoso?
+                            </label>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label" style="font-size:var(--text-xs);">Observación</label>
+                            <textarea name="observacion" class="form-control form-control-sm"
+                                      rows="3" placeholder="Describe el resultado del contacto..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-ghost btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="bi bi-save me-1"></i>Guardar contacto
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        // ── Editar campo ──────────────────────────────────────────────
+        const ANTIFORGERY_TOKEN = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+
+        function abrirEditarCampo(campo, label, tipo, valorActual) {
+            document.getElementById('editCampoLabel').textContent = label;
+            document.getElementById('editCampoNombre').value = campo;
+            document.getElementById('editMotivo').value = '';
+            document.getElementById('editMotivoError').style.display = 'none';
+            document.getElementById('editResultado').style.display = 'none';
+            document.getElementById('btnGuardarEdicion').disabled = false;
+
+            const inputText   = document.getElementById('editInputText');
+            const inputSelect = document.getElementById('editInputSelect');
+
+            if (tipo === 'select') {
+                inputText.style.display = 'none';
+                inputSelect.style.display = '';
+            } else {
+                inputText.style.display = '';
+                inputSelect.style.display = 'none';
+                inputText.type = tipo;
+                inputText.value = valorActual === '—' ? '' : valorActual.replace(/[$,]/g, '').trim();
+            }
+
+            const modal = new bootstrap.Modal(document.getElementById('modalEditarCampo'));
+            modal.show();
+        }
+
+        async function guardarEdicion() {
+            const campo  = document.getElementById('editCampoNombre').value;
+            const motivo = document.getElementById('editMotivo').value.trim();
+            const inputText   = document.getElementById('editInputText');
+            const inputSelect = document.getElementById('editInputSelect');
+            const valorNuevo  = inputSelect.style.display === 'none' ? inputText.value : inputSelect.value;
+
+            if (motivo.length < 10) {
+                document.getElementById('editMotivoError').textContent = 'El motivo debe tener al menos 10 caracteres.';
+                document.getElementById('editMotivoError').style.display = 'block';
+                return;
+            }
+            document.getElementById('editMotivoError').style.display = 'none';
+            document.getElementById('btnGuardarEdicion').disabled = true;
+
+            const form = new FormData();
+            form.append('pedidoId',  '@Model.Id');
+            form.append('campo',     campo);
+            form.append('valorNuevo', valorNuevo);
+            form.append('motivo',    motivo);
+            form.append('__RequestVerificationToken', ANTIFORGERY_TOKEN || '');
+
+            const resp = await fetch('/Pedido/EditarCampo', { method: 'POST', body: form });
+            const data = await resp.json();
+
+            const res = document.getElementById('editResultado');
+            res.style.display = 'block';
+            if (data.success) {
+                res.className = 'text-success';
+                res.textContent = data.mensaje;
+                const cell = document.getElementById('val-' + campo);
+                if (cell) cell.textContent = data.valorNuevo ?? valorNuevo;
+                setTimeout(() => bootstrap.Modal.getInstance(document.getElementById('modalEditarCampo'))?.hide(), 1200);
+            } else {
+                res.className = 'text-danger';
+                res.textContent = data.mensaje;
+                document.getElementById('btnGuardarEdicion').disabled = false;
+            }
+        }
+
+        // ── Ajuste de costo de envío ──────────────────────────────────
+        async function guardarAjusteEnvio() {
+            const nuevoCosto = parseFloat(document.getElementById('inputNuevoCosto').value);
+            const nota       = (document.getElementById('inputNotaEnvio').value || '').trim();
+            const errDiv     = document.getElementById('notaEnvioError');
+            const resDiv     = document.getElementById('ajusteEnvioResultado');
+
+            if (isNaN(nuevoCosto) || nuevoCosto < 0) {
+                errDiv.textContent = 'Ingresá un costo válido (0 o mayor).';
+                errDiv.style.display = 'block';
+                return;
+            }
+            if (nota.length < 5) {
+                errDiv.textContent = 'El motivo debe tener al menos 5 caracteres.';
+                errDiv.style.display = 'block';
+                return;
+            }
+            errDiv.style.display = 'none';
+
+            const form = new FormData();
+            form.append('pedidoId',       '@Model.Id');
+            form.append('nuevoCostoEnvio', nuevoCosto.toString());
+            form.append('notaEnvio',       nota);
+            form.append('__RequestVerificationToken', ANTIFORGERY_TOKEN || '');
+
+            const resp = await fetch('/Pedido/AjustarCostoEnvio', { method: 'POST', body: form });
+            const data = await resp.json();
+
+            resDiv.style.display = 'block';
+            if (data.success) {
+                resDiv.className   = 'text-success';
+                resDiv.textContent = `✓ Costo actualizado a $${Math.round(data.nuevoCosto).toLocaleString('es-AR')} ARS. Email enviado.`;
+                setTimeout(() => location.reload(), 1800);
+            } else {
+                resDiv.className   = 'text-danger';
+                resDiv.textContent = data.mensaje;
+            }
+        }
+
+        // ── Contacto ──────────────────────────────────────────────────
+        function abrirModalContacto(tipo) {
+            const descs = {
+                'Telefono': 'Registrar resultado de llamada telefónica al cliente.',
+                'Email':    'Registrar resultado del contacto por correo electrónico.',
+                'WhatsApp': 'Registrar resultado del contacto por WhatsApp.'
+            };
+            document.getElementById('modalTipoContacto').value = tipo;
+            document.getElementById('modalContactoDesc').textContent = descs[tipo] || '';
+            const modal = new bootstrap.Modal(document.getElementById('modalContacto'));
+            modal.show();
+        }
+
+        function abrirWhatsApp(telefono) {
+            if (telefono) {
+                window.open('https://wa.me/' + telefono, '_blank');
+            }
+            abrirModalContacto('WhatsApp');
+        }
+    </script>
+}
+
+<style>
+    .card-section-title {
+        font-size: var(--text-xs);
+        font-weight: var(--weight-semibold);
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin-bottom: var(--sp-3);
+    }
+
+    /* ── Timeline ─────────────────────────────────────────────────── */
+    .pedido-timeline { position: relative; padding-left: 36px; }
+    .pedido-timeline::before {
+        content: '';
+        position: absolute;
+        left: 15px;
+        top: 8px;
+        bottom: 8px;
+        width: 2px;
+        background: var(--border-light);
+        border-radius: 2px;
+    }
+    .timeline-item {
+        position: relative;
+        display: flex;
+        gap: 14px;
+        padding-bottom: var(--sp-5);
+    }
+    .timeline-item:last-child { padding-bottom: 0; }
+    .timeline-icon {
+        position: absolute;
+        left: -36px;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        flex-shrink: 0;
+        border: 2px solid #fff;
+        box-shadow: 0 1px 4px rgba(0,0,0,.12);
+    }
+    .timeline-icon-estado  { background: var(--accent);   color: #fff; }
+    .timeline-icon-contacto { background: #1a7f3c;         color: #fff; }
+    .timeline-body { flex: 1; min-width: 0; }
+    .timeline-desc {
+        font-size: var(--text-sm);
+        font-weight: var(--weight-semibold);
+        color: var(--text-primary);
+        margin-bottom: 4px;
+    }
+    .timeline-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        font-size: var(--text-xs);
+        color: var(--text-muted);
+        margin-bottom: 4px;
+    }
+    .timeline-obs {
+        font-size: var(--text-xs);
+        color: var(--text-muted);
+        background: var(--surface, #f5f5f7);
+        border-radius: 8px;
+        padding: 6px 10px;
+        margin-top: 4px;
+    }
+</style>

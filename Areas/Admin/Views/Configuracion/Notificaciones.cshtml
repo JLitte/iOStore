@@ -1,0 +1,189 @@
+@model iOStore.Models.ConfiguracionNotificacion
+@{
+    ViewData["Title"] = "Notificaciones SMTP";
+    Layout = "/Views/Shared/_Layout.Admin.cshtml";
+}
+
+<div class="admin-page-header">
+    <div>
+        <div class="admin-page-title">Notificaciones por email</div>
+        <div class="admin-page-sub">Configuración del servidor SMTP para emails automáticos a clientes.</div>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success"><i class="bi bi-check-circle me-2"></i>@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger"><i class="bi bi-x-circle me-2"></i>@TempData["Error"]</div>
+}
+
+<div class="row g-4">
+    <!-- Formulario de configuración -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-section-title mb-4"><i class="bi bi-server me-1"></i>Servidor SMTP</h6>
+
+                <form asp-action="Notificaciones" method="post">
+                    @Html.AntiForgeryToken()
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-8">
+                            <label asp-for="SmtpHost" class="form-label label-sm"></label>
+                            <input asp-for="SmtpHost" class="form-control form-control-sm"
+                                   placeholder="smtp.gmail.com" />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="SmtpPort" class="form-label label-sm"></label>
+                            <input asp-for="SmtpPort" type="number" class="form-control form-control-sm" />
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="SmtpUser" class="form-label label-sm"></label>
+                            <input asp-for="SmtpUser" class="form-control form-control-sm"
+                                   placeholder="tu-cuenta@gmail.com" />
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="SmtpPassword" class="form-label label-sm"></label>
+                            <input asp-for="SmtpPassword" type="password" class="form-control form-control-sm"
+                                   placeholder="Dejar vacío para no cambiar" autocomplete="new-password" />
+                        </div>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input asp-for="SmtpUseSsl" class="form-check-input" type="checkbox" />
+                        <label asp-for="SmtpUseSsl" class="form-check-label" style="font-size:var(--text-sm);">
+                            Usar TLS/SSL (recomendado)
+                        </label>
+                    </div>
+
+                    <hr style="border-color:var(--border-light);" />
+                    <h6 class="card-section-title mb-3"><i class="bi bi-envelope me-1"></i>Remitente</h6>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="EmailRemitente" class="form-label label-sm"></label>
+                            <input asp-for="EmailRemitente" class="form-control form-control-sm"
+                                   placeholder="noreply@iostore.com" />
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="NombreRemitente" class="form-label label-sm"></label>
+                            <input asp-for="NombreRemitente" class="form-control form-control-sm" />
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="EmailSoporte" class="form-label label-sm"></label>
+                            <input asp-for="EmailSoporte" class="form-control form-control-sm"
+                                   placeholder="soporte@iostore.com" />
+                            <div class="form-text" style="font-size:10px;">Se usa en Reply-To y en el aviso de no responder al pie del email.</div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label asp-for="NombreEmpresa" class="form-label label-sm"></label>
+                            <input asp-for="NombreEmpresa" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="UrlTienda" class="form-label label-sm"></label>
+                            <input asp-for="UrlTienda" class="form-control form-control-sm"
+                                   placeholder="https://iostore.com" />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="UrlSeguimiento" class="form-label label-sm"></label>
+                            <input asp-for="UrlSeguimiento" class="form-control form-control-sm"
+                                   placeholder="https://iostore.com/Pedido/Details" />
+                        </div>
+                    </div>
+
+                    <hr style="border-color:var(--border-light);" />
+                    <h6 class="card-section-title mb-3"><i class="bi bi-toggle-on me-1"></i>Eventos</h6>
+
+                    <div class="d-flex gap-4 flex-wrap mb-4">
+                        <div class="form-check">
+                            <input asp-for="NotificarConfirmacion" class="form-check-input" type="checkbox" />
+                            <label asp-for="NotificarConfirmacion" class="form-check-label" style="font-size:var(--text-sm);">
+                                Confirmación de pedido
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input asp-for="NotificarSeguimiento" class="form-check-input" type="checkbox" />
+                            <label asp-for="NotificarSeguimiento" class="form-check-label" style="font-size:var(--text-sm);">
+                                Actualizaciones de estado
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input asp-for="NotificarEntregado" class="form-check-input" type="checkbox" />
+                            <label asp-for="NotificarEntregado" class="form-check-label" style="font-size:var(--text-sm);">
+                                Entrega confirmada
+                            </label>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-save me-1"></i>Guardar configuración
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel lateral: test + notas -->
+    <div class="col-lg-4">
+        <div class="card mb-3">
+            <div class="card-body">
+                <h6 class="card-section-title"><i class="bi bi-send me-1"></i>Email de prueba</h6>
+                <form asp-action="TestEmail" method="post">
+                    @Html.AntiForgeryToken()
+                    <div class="mb-2">
+                        <input type="email" name="emailPrueba" class="form-control form-control-sm"
+                               placeholder="tu@email.com" required />
+                    </div>
+                    <button type="submit" class="btn btn-outline-primary btn-sm w-100">
+                        <i class="bi bi-envelope-check me-1"></i>Enviar test
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-section-title"><i class="bi bi-info-circle me-1"></i>Notas de configuración</h6>
+                <div style="font-size:var(--text-xs);color:var(--text-muted);line-height:1.6;">
+                    <p class="mb-2">
+                        <strong>Gmail:</strong> Usá una contraseña de aplicación (no tu contraseña de Google).
+                        Activá la verificación en 2 pasos y generá una en
+                        <em>Cuenta Google → Seguridad → Contraseñas de aplicaciones</em>.
+                    </p>
+                    <p class="mb-0">
+                        <strong>Puerto 587</strong> con TLS o <strong>puerto 465</strong> con SSL son los más comunes.
+                        Para Gmail: host <code>smtp.gmail.com</code>, puerto <code>587</code>, TLS activado.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card-section-title {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.label-sm {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+</style>

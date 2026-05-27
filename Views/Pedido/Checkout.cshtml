@@ -1,0 +1,586 @@
+@model iOStore.Models.Pedido
+@using iOStore.Models
+@{
+    ViewData["Title"] = "Finalizar compra";
+    var carritoItems  = ViewBag.CarritoItems as List<iOStore.Models.CarritoItem> ?? new();
+    var metodosPago   = ViewBag.MetodosPago  as List<MetodoPago> ?? new();
+    var cotiz         = ViewBag.Cotizacion   as CotizacionDto ?? new CotizacionDto { DolarBlue=1200, DolarCaraChica=1320, DolarTarjeta=1500, FuenteDatos="fallback" };
+    var subtotal      = (decimal)(ViewBag.Subtotal ?? 0m);
+    var totalItems    = carritoItems.Sum(ci => ci.Cantidad);
+
+    // Agrupar por tipo de moneda
+    var mpUSDGrande   = metodosPago.Where(m => m.TipoMoneda == "USD_CaraGrande").ToList();
+    var mpUSDChica    = metodosPago.Where(m => m.TipoMoneda == "USD_CaraChica").ToList();
+    var mpUSDTarjeta  = metodosPago.Where(m => m.TipoMoneda == "USD_Tarjeta" && m.Tipo != TipoMetodoPago.Credito).ToList();
+    var mpUSDT        = metodosPago.Where(m => m.TipoMoneda == "USDT").ToList();
+    var mpARS         = metodosPago.Where(m => m.TipoMoneda == "ARS").ToList();
+}
+
+<!-- Breadcrumb -->
+<nav class="breadcrumb-apple mb-4">
+    <a asp-controller="Home" asp-action="Index">Inicio</a>
+    <span class="sep">›</span>
+    <a asp-controller="Carrito" asp-action="Index">Carrito</a>
+    <span class="sep">›</span>
+    <span>Finalizar compra</span>
+</nav>
+
+<!-- Stepper -->
+<div class="checkout-stepper mb-4">
+    <div class="step-pill active"><span class="step-num">1</span>Datos de envío</div>
+    <div class="step-connector"></div>
+    <div class="step-pill active"><span class="step-num">2</span>Método de pago</div>
+    <div class="step-connector"></div>
+    <div class="step-pill inactive"><span class="step-num">3</span>Completado</div>
+</div>
+
+<!-- Layout 2 columnas -->
+<div class="checkout-layout">
+
+    <!-- ── Panel izquierdo ───────────────────────────────────────── -->
+    <div>
+        <!-- Resumen de productos -->
+        <div class="checkout-card fade-in-up">
+            <div class="checkout-card-title"><i class="bi bi-box"></i>Tu pedido</div>
+            <div class="checkout-summary-table">
+                @foreach (var item in carritoItems)
+                {
+                    <div class="checkout-summary-item">
+                        <div class="checkout-summary-img">
+                            <img src="@(item.Producto?.ImagenUrl ?? "/images/no-image.png")" alt="@item.Producto?.Modelo" />
+                        </div>
+                        <div class="checkout-summary-info">
+                            <div class="checkout-summary-name">@item.Producto?.TipoProducto</div>
+                            <div class="checkout-summary-meta">@item.Producto?.Modelo · Cant: @item.Cantidad</div>
+                        </div>
+                        <div class="checkout-summary-price">
+                            USD @((item.Cantidad * item.Producto!.Precio).ToString("0.00"))
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <form asp-action="ProcesarPedido" method="post" id="formCheckout">
+            @Html.AntiForgeryToken()
+
+            <!-- ── Sección Envío ─────────────────────────────────────── -->
+            <div class="checkout-card fade-in-up">
+                <div class="checkout-card-title"><i class="bi bi-truck"></i>Datos de envío</div>
+
+                <div class="form-apple-group">
+                    <label asp-for="DireccionEnvio" class="form-apple-label">Dirección de entrega *</label>
+                    <div style="position:relative;">
+                        <i class="bi bi-geo-alt" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--apple-muted);font-size:14px;pointer-events:none;"></i>
+                        <input asp-for="DireccionEnvio" id="inputDireccion" class="form-apple-input" style="padding-left:34px;" placeholder="Calle, número, ciudad, provincia..." />
+                    </div>
+                    <span asp-validation-for="DireccionEnvio" style="font-size:12px;color:var(--danger);margin-top:4px;display:block;"></span>
+                    <div id="errDireccion" style="display:none;font-size:12px;color:var(--danger);margin-top:4px;"></div>
+                </div>
+
+                <div class="form-apple-group">
+                    <label class="form-apple-label">Código Postal</label>
+                    <div style="display:flex;gap:8px;">
+                        <input type="text" id="inputCP" name="CodigoPostal" class="form-apple-input" style="max-width:140px;" placeholder="Ej: 1425" maxlength="8" />
+                        <button type="button" id="btnCalcularEnvio" class="btn btn-sm" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:0 16px;font-size:13px;white-space:nowrap;">
+                            <i class="bi bi-search me-1"></i>Calcular envío
+                        </button>
+                    </div>
+                    <div id="errCP" style="display:none;font-size:12px;color:var(--danger);margin-top:4px;"></div>
+                </div>
+
+                <div id="envioLoading" style="display:none;font-size:13px;color:var(--text-muted);margin-bottom:8px;">
+                    <span class="spinner-border spinner-border-sm me-1"></span>Calculando...
+                </div>
+                <div id="envioError" style="display:none;font-size:13px;color:var(--danger);margin-bottom:8px;"></div>
+                <div id="bannerEnvioGratis" style="display:none;background:linear-gradient(135deg,#e8f5e9,#c8e6c9);border:1px solid #a5d6a7;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;font-weight:600;color:#1b5e20;">
+                    🎉 ¡Envío gratis! Tu compra supera USD 2.000
+                </div>
+                <div id="opcionesEnvioWrap" style="display:none;">
+                    <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:8px;">Elegí tu transportista</div>
+                    <div id="opcionesEnvioList"></div>
+                </div>
+                <div id="errTransportista" style="display:none;font-size:12px;color:var(--danger);margin-top:4px;"></div>
+                <div class="form-apple-group" style="margin-top:12px;">
+                    <label asp-for="Observaciones" class="form-apple-label">Observaciones (opcional)</label>
+                    <textarea asp-for="Observaciones" class="form-apple-input form-apple-textarea" placeholder="Instrucciones especiales, horarios preferidos, etc."></textarea>
+                </div>
+            </div>
+
+            <!-- ── Sección Método de Pago ────────────────────────────── -->
+            <div class="checkout-card fade-in-up">
+                <div class="checkout-card-title"><i class="bi bi-credit-card"></i>Método de pago</div>
+
+                <!-- Banner cotización -->
+                <div style="background:#f0f4ff;border:1px solid #c7d4f5;border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:12px;">
+                    <div style="font-weight:700;color:#1a3a8f;margin-bottom:4px;">
+                        <i class="bi bi-currency-exchange me-1"></i>
+                        Cotización al @cotiz.FechaConsulta.ToString("HH:mm")
+                        <span style="font-weight:400;color:#6b7280;margin-left:6px;">Fuente: @cotiz.FuenteDatos</span>
+                    </div>
+                    <div style="display:flex;gap:20px;flex-wrap:wrap;">
+                        <span><strong>Blue (cara grande):</strong> $@cotiz.DolarBlue.ToString("N0")</span>
+                        <span><strong>Tarjeta:</strong> $@cotiz.DolarTarjeta.ToString("N0")</span>
+                    </div>
+                </div>
+
+                <!-- == Dólares billete == -->
+                @if (mpUSDGrande.Any() || mpUSDChica.Any())
+                {
+                    <div class="pago-grupo-label">Dólares billete</div>
+                    @foreach (var mp in mpUSDGrande)
+                    {
+                        <label class="metodo-pago-card" data-id="@mp.Id"
+                               data-tipo-moneda="@mp.TipoMoneda"
+                               data-recargo="0" data-cuotas="1">
+                            <input type="radio" name="MetodoPagoId" value="@mp.Id" style="position:absolute;opacity:0;width:0;height:0;" />
+                            <div style="flex:1;">
+                                <div style="font-size:13px;font-weight:600;">@mp.Nombre</div>
+                                <div style="font-size:11px;color:var(--text-muted);">@mp.Descripcion</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="font-size:13px;font-weight:700;">USD @subtotal.ToString("0.00")</div>
+                                <div style="font-size:11px;color:var(--text-muted);">Sin recargo</div>
+                            </div>
+                        </label>
+                    }
+                    @foreach (var mp in mpUSDChica)
+                    {
+                        <label class="metodo-pago-card" data-id="@mp.Id"
+                               data-tipo-moneda="@mp.TipoMoneda"
+                               data-recargo="@mp.RecargoPorc.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)" data-cuotas="1">
+                            <input type="radio" name="MetodoPagoId" value="@mp.Id" style="position:absolute;opacity:0;width:0;height:0;" />
+                            <div style="flex:1;">
+                                <div style="font-size:13px;font-weight:600;">@mp.Nombre</div>
+                                <div style="font-size:11px;color:var(--text-muted);">@mp.Descripcion</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="font-size:13px;font-weight:700;">USD @((subtotal * (1 + mp.RecargoPorc / 100m)).ToString("0.00"))</div>
+                                <span style="font-size:11px;background:#fff3cd;color:#856404;border-radius:6px;padding:1px 6px;">+@mp.RecargoPorc.ToString("0.##")%</span>
+                            </div>
+                        </label>
+                    }
+                }
+
+                <!-- == Dólares tarjeta == -->
+                @if (mpUSDTarjeta.Any())
+                {
+                    <div class="pago-grupo-label">Dólares tarjeta</div>
+                    @foreach (var mp in mpUSDTarjeta)
+                    {
+                        <label class="metodo-pago-card" data-id="@mp.Id"
+                               data-tipo-moneda="@mp.TipoMoneda"
+                               data-recargo="0" data-cuotas="1">
+                            <input type="radio" name="MetodoPagoId" value="@mp.Id" style="position:absolute;opacity:0;width:0;height:0;" />
+                            <div style="flex:1;">
+                                <div style="font-size:13px;font-weight:600;">@mp.Nombre</div>
+                                <div style="font-size:11px;color:var(--text-muted);">
+                                    Cotización tarjeta: $@cotiz.DolarTarjeta.ToString("N0") · 1 cuota
+                                </div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="font-size:13px;font-weight:700;">ARS @((subtotal * cotiz.DolarTarjeta).ToString("N0"))</div>
+                                <div style="font-size:11px;color:var(--text-muted);">Sin financiación</div>
+                            </div>
+                        </label>
+                    }
+                }
+
+                <!-- == USDT / Dólares digitales == -->
+                @if (mpUSDT.Any())
+                {
+                    <div class="pago-grupo-label">Dólares digitales (USDT)</div>
+                    @foreach (var mp in mpUSDT)
+                    {
+                        <label class="metodo-pago-card" data-id="@mp.Id"
+                               data-tipo-moneda="@mp.TipoMoneda"
+                               data-recargo="@mp.RecargoPorc.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)" data-cuotas="1">
+                            <input type="radio" name="MetodoPagoId" value="@mp.Id" style="position:absolute;opacity:0;width:0;height:0;" />
+                            <div style="flex:1;">
+                                <div style="font-size:13px;font-weight:600;">@mp.Nombre</div>
+                                <div style="font-size:11px;color:var(--text-muted);">@mp.Descripcion</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="font-size:13px;font-weight:700;">USD @subtotal.ToString("0.00")</div>
+                                <div style="font-size:11px;color:var(--text-muted);">Equivalente blue</div>
+                            </div>
+                        </label>
+                    }
+                }
+
+                <!-- == Pesos argentinos == -->
+                @if (mpARS.Any())
+                {
+                    <div class="pago-grupo-label">Pesos argentinos</div>
+                    @foreach (var mp in mpARS)
+                    {
+                        var usaTarjeta = mp.Tipo == TipoMetodoPago.Credito || mp.Tipo == TipoMetodoPago.Debito;
+                        var tasaARS    = usaTarjeta ? cotiz.DolarTarjeta : cotiz.DolarBlue;
+                        var precioARS  = Math.Round(subtotal * tasaARS * (1 + mp.RecargoPorc / 100m), 0);
+                        <label class="metodo-pago-card" data-id="@mp.Id"
+                               data-tipo-moneda="ARS"
+                               data-cotiz-rate="@(usaTarjeta ? "tarjeta" : "blue")"
+                               data-recargo="@mp.RecargoPorc.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)"
+                               data-cuotas="@mp.Cuotas">
+                            <input type="radio" name="MetodoPagoId" value="@mp.Id" style="position:absolute;opacity:0;width:0;height:0;" />
+                            <div style="flex:1;">
+                                <div style="font-size:13px;font-weight:600;">@mp.Nombre</div>
+                                @if (!string.IsNullOrEmpty(mp.Descripcion))
+                                {
+                                    <div style="font-size:11px;color:var(--text-muted);">@mp.Descripcion</div>
+                                }
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="font-size:13px;font-weight:700;">$@precioARS.ToString("N0")</div>
+                                @if (mp.Cuotas > 1)
+                                {
+                                    <div style="font-size:11px;color:var(--text-muted);">@mp.Cuotas × $@(Math.Round(precioARS / mp.Cuotas, 0).ToString("N0"))</div>
+                                }
+                                @if (mp.RecargoPorc > 0)
+                                {
+                                    <span style="font-size:11px;background:#fff3cd;color:#856404;border-radius:6px;padding:1px 6px;">+@mp.RecargoPorc.ToString("0.##")%</span>
+                                }
+                            </div>
+                        </label>
+                    }
+                }
+
+                <!-- Info transferencia bancaria -->
+                <div id="infoTransferencia" style="display:none;margin-top:10px;background:#f0f4ff;border:1px solid #c7d4f5;border-radius:10px;padding:12px 16px;">
+                    <div style="font-size:12px;font-weight:700;margin-bottom:6px;color:#1a3a8f;">
+                        <i class="bi bi-bank me-1"></i>Datos bancarios para transferencia
+                    </div>
+                    <div style="font-size:12px;line-height:1.9;color:#2d3a6b;">
+                        <strong>CBU:</strong> @ViewBag.CBU<br />
+                        <strong>Alias:</strong> @ViewBag.Alias<br />
+                        <strong>Titular:</strong> @ViewBag.Titular · @ViewBag.Banco
+                    </div>
+                    <div class="form-apple-group" style="margin-top:8px;">
+                        <label class="form-apple-label" style="font-size:12px;">N° comprobante / referencia (opcional)</label>
+                        <input type="text" name="ReferenciaPago" class="form-apple-input" placeholder="Últimos 6 dígitos o N° operación" />
+                    </div>
+                </div>
+
+                <!-- Campos ocultos para persistencia en Pedido -->
+                <input type="hidden" name="TipoMonedaPago"      id="hTipoMoneda"        value="" />
+                <input type="hidden" name="TipoCambioAplicado"  id="hTipoCambio"         value="1" />
+                <input type="hidden" name="PrecioFinalUSD"      id="hPrecioFinalUSD"     value="" />
+                <input type="hidden" name="PrecioFinalARS"      id="hPrecioFinalARS"     value="" />
+                <input type="hidden" name="RecargoAplicadoPorc" id="hRecargoPorc"        value="0" />
+                <input type="hidden" name="RecargoAplicado"     id="hRecargoPesos"       value="0" />
+                <input type="hidden" name="TotalConRecargo"     id="hTotalConRecargo"    value="@subtotal.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)" />
+                <input type="hidden" name="CuotasSeleccionadas" id="hCuotasSeleccionadas" value="1" />
+                <input type="hidden" name="CostoEnvio"          id="hCostoEnvio"         value="0" />
+                <input type="hidden" name="EsEnvioGratis"       id="hEsEnvioGratis"      value="false" />
+                <input type="hidden" name="TransportistaSeleccionado" id="hTransportista" value="" />
+            </div>
+
+        </form>
+    </div>
+
+    <!-- ── Panel resumen (sticky) ────────────────────────────────── -->
+    <div>
+        <div class="cart-summary fade-in-up">
+            <div class="cart-summary-title">Resumen</div>
+
+            <div class="summary-line">
+                <span class="label">Subtotal (@totalItems producto@(totalItems != 1 ? "s" : ""))</span>
+                <span id="resumenSubtotal">USD @subtotal.ToString("0.00")</span>
+            </div>
+            <div class="summary-line">
+                <span class="label">Envío</span>
+                <span id="resumenEnvio" style="color:var(--text-muted);">— ingresá tu CP</span>
+            </div>
+            <div class="summary-line" id="resumenRecargoLine" style="display:none;">
+                <span class="label">Recargo financiero</span>
+                <span id="resumenRecargo" style="color:#856404;"></span>
+            </div>
+
+            <div class="summary-total-line">
+                <span>Total a pagar</span>
+                <span id="resumenTotal">USD @subtotal.ToString("0.00")</span>
+            </div>
+            <div id="resumenCuota" style="font-size:12px;color:var(--text-muted);text-align:right;margin-top:4px;display:none;"></div>
+            <div id="resumenTipoCambio" style="font-size:11px;color:var(--text-muted);margin-top:4px;display:none;"></div>
+
+            <button type="button" class="btn-confirm-order" id="btnConfirmarPedido" style="margin-top:16px;">
+                <i class="bi bi-check2-circle"></i>Confirmar pedido
+            </button>
+            <a asp-controller="Carrito" asp-action="Index" class="btn-keep-shopping" style="justify-content:center;width:100%;margin-top:8px;">
+                <i class="bi bi-arrow-left"></i>Volver al carrito
+            </a>
+            <p style="font-size:11px;color:var(--apple-muted);text-align:center;margin-top:12px;">
+                <i class="bi bi-shield-check me-1"></i>Compra 100% segura · Garantía oficial Apple
+            </p>
+        </div>
+    </div>
+</div>
+
+<style>
+.metodo-pago-card {
+    display:flex;align-items:center;gap:10px;padding:10px 14px;
+    border:1.5px solid var(--border-light);border-radius:10px;cursor:pointer;
+    transition:border-color .15s,background .15s;position:relative;user-select:none;
+    margin-bottom:6px;
+}
+.metodo-pago-card:hover  { border-color:var(--accent);background:#f0f4ff; }
+.metodo-pago-card.selected { border-color:var(--accent);background:#e8f0fe; }
+.pago-grupo-label {
+    font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--text-muted);margin:12px 0 6px;
+}
+.opcion-envio-card {
+    display:flex;align-items:center;gap:10px;padding:10px 14px;
+    border:1.5px solid var(--border-light);border-radius:10px;cursor:pointer;
+    transition:border-color .15s,background .15s;margin-bottom:6px;user-select:none;
+}
+.opcion-envio-card:hover   { border-color:var(--accent);background:#f0f4ff; }
+.opcion-envio-card.selected { border-color:var(--accent);background:#e8f0fe; }
+</style>
+
+@section Scripts {
+<script>
+    const SUBTOTAL_USD    = @subtotal.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+    const BLUE            = @cotiz.DolarBlue.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+    const TARJETA         = @cotiz.DolarTarjeta.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+    const SUBTOTAL_ARS    = Math.round(SUBTOTAL_USD * BLUE);
+
+    let costoEnvioARS = 0;
+
+    function fmt(n, moneda) {
+        if (moneda === 'USD') return 'USD ' + n.toFixed(2);
+        return '$' + Math.round(n).toLocaleString('es-AR');
+    }
+
+    function actualizarResumen() {
+        const card = document.querySelector('.metodo-pago-card.selected');
+        if (!card) return;
+
+        const tipoMoneda  = card.dataset.tipoMoneda;
+        const recargoPorc = parseFloat(card.dataset.recargo) || 0;
+        const cuotas      = parseInt(card.dataset.cuotas) || 1;
+
+        let precioBase, tipoCambio, moneda, recargoMonto = 0;
+
+        if (tipoMoneda === 'USD_CaraGrande' || tipoMoneda === 'USDT') {
+            precioBase = SUBTOTAL_USD;
+            tipoCambio = BLUE;       // ARS por cada USD al tipo blue
+            moneda     = 'USD';
+        } else if (tipoMoneda === 'USD_CaraChica') {
+            // Se cobra en USD: cara grande + recargoPorc%, sin conversión a pesos
+            precioBase = +(SUBTOTAL_USD * (1 + recargoPorc / 100)).toFixed(2);
+            tipoCambio = 0;
+            moneda     = 'USD';
+        } else if (tipoMoneda === 'USD_Tarjeta') {
+            precioBase = +(SUBTOTAL_USD * TARJETA).toFixed(0);
+            tipoCambio = TARJETA;
+            moneda     = 'ARS';
+        } else { // ARS
+            const cotizRate = card.dataset.cotizRate === 'tarjeta' ? TARJETA : BLUE;
+            const baseARS   = SUBTOTAL_USD * cotizRate;
+            recargoMonto    = Math.round(baseARS * recargoPorc / 100);
+            precioBase      = Math.round(baseARS + recargoMonto);
+            tipoCambio      = cotizRate;
+            moneda          = 'ARS';
+        }
+
+        // Costo envío siempre en ARS
+        const envioEnMoneda = moneda === 'USD' ? 0 : costoEnvioARS;
+        const total         = moneda === 'USD' ? precioBase : precioBase + costoEnvioARS;
+
+        // ── Resumen visual ────────────────────────────
+        document.getElementById('resumenSubtotal').textContent = fmt(precioBase, moneda);
+        const envioEl = document.getElementById('resumenEnvio');
+
+        if (costoEnvioARS === 0 && document.getElementById('hEsEnvioGratis').value === 'true') {
+            envioEl.textContent   = moneda === 'ARS' ? 'ARS $0 — Gratis' : 'Gratis (en ARS)';
+            envioEl.style.color   = 'var(--success)';
+            envioEl.style.fontWeight = '600';
+        } else if (costoEnvioARS > 0 && moneda === 'ARS') {
+            envioEl.textContent   = '$' + costoEnvioARS.toLocaleString('es-AR');
+            envioEl.style.color   = '';
+            envioEl.style.fontWeight = '';
+        } else if (moneda === 'USD') {
+            envioEl.textContent = 'Envío aparte en ARS';
+            envioEl.style.color = 'var(--text-muted)';
+        }
+
+        const recargoLine = document.getElementById('resumenRecargoLine');
+        if (recargoMonto > 0) {
+            recargoLine.style.display = '';
+            document.getElementById('resumenRecargo').textContent = '+$' + Math.round(recargoMonto).toLocaleString('es-AR');
+        } else {
+            recargoLine.style.display = 'none';
+        }
+
+        document.getElementById('resumenTotal').textContent = fmt(total, moneda);
+
+        const cuotaEl = document.getElementById('resumenCuota');
+        if (cuotas > 1) {
+            cuotaEl.style.display = '';
+            cuotaEl.textContent = `${cuotas} cuotas de ${fmt(total / cuotas, moneda)}`;
+        } else {
+            cuotaEl.style.display = 'none';
+        }
+
+        const tcEl = document.getElementById('resumenTipoCambio');
+        if (moneda === 'ARS' && tipoCambio > 1) {
+            tcEl.style.display = '';
+            tcEl.textContent = `Tipo de cambio aplicado: $${Math.round(tipoCambio).toLocaleString('es-AR')}`;
+        } else {
+            tcEl.style.display = 'none';
+        }
+
+        // ── Campos ocultos ────────────────────────────
+        document.getElementById('hTipoMoneda').value        = tipoMoneda;
+        document.getElementById('hTipoCambio').value        = tipoCambio;
+        document.getElementById('hRecargoPorc').value       = recargoPorc;
+        document.getElementById('hRecargoPesos').value      = recargoMonto;
+        document.getElementById('hCuotasSeleccionadas').value = cuotas;
+        // TotalConRecargo = precio del producto con recargo incluido, SIN envío.
+        // El envío se almacena por separado en CostoEnvio.
+        document.getElementById('hTotalConRecargo').value   = precioBase.toFixed(2);
+
+        if (moneda === 'USD') {
+            document.getElementById('hPrecioFinalUSD').value = precioBase.toFixed(2);
+            document.getElementById('hPrecioFinalARS').value = '';
+        } else {
+            document.getElementById('hPrecioFinalARS').value = precioBase.toFixed(2);
+            document.getElementById('hPrecioFinalUSD').value = '';
+        }
+    }
+
+    // ── Selección de método de pago ───────────────────────────────
+    document.querySelectorAll('.metodo-pago-card').forEach(card => {
+        card.addEventListener('click', function () {
+            document.querySelectorAll('.metodo-pago-card').forEach(c => c.classList.remove('selected'));
+            this.classList.add('selected');
+            this.querySelector('input[type=radio]').checked = true;
+
+            // Info transferencia
+            const es = c => c.dataset.tipoMoneda === 'ARS';
+            const mp = document.querySelector('input[name="MetodoPagoId"]:checked');
+            const mpCard = mp?.closest('.metodo-pago-card');
+            const tipoMoneda = mpCard?.dataset.tipoMoneda;
+            // Mostrar info transferencia solo si es ARS y la opción contiene "ransferencia"
+            const nombre = this.querySelector('div > div:first-child')?.textContent ?? '';
+            document.getElementById('infoTransferencia').style.display =
+                (tipoMoneda === 'ARS' && nombre.toLowerCase().includes('transferencia')) ? '' : 'none';
+
+            actualizarResumen();
+        });
+    });
+
+    // ── Envío ─────────────────────────────────────────────────────
+    document.getElementById('btnCalcularEnvio').addEventListener('click', async function () {
+        const cp = document.getElementById('inputCP').value.trim();
+        if (!cp) {
+            document.getElementById('envioError').textContent = 'Ingresá un código postal.';
+            document.getElementById('envioError').style.display = '';
+            return;
+        }
+        document.getElementById('envioLoading').style.display = '';
+        document.getElementById('envioError').style.display   = 'none';
+        document.getElementById('opcionesEnvioWrap').style.display = 'none';
+
+        try {
+            const resp = await fetch(`/Pedido/ObtenerOpcionesEnvio?cp=${encodeURIComponent(cp)}&totalARS=${SUBTOTAL_ARS}&totalUSD=${SUBTOTAL_USD}`);
+            const data = await resp.json();
+            document.getElementById('envioLoading').style.display = 'none';
+
+            if (!data.ok) {
+                document.getElementById('envioError').textContent = data.mensaje;
+                document.getElementById('envioError').style.display = '';
+                return;
+            }
+
+            const lista = document.getElementById('opcionesEnvioList');
+            lista.innerHTML = '';
+            data.opciones.forEach((op, i) => {
+                const div = document.createElement('div');
+                div.className = 'opcion-envio-card' + (i === 0 ? ' selected' : '');
+                div.dataset.costo = op.costo;
+                div.dataset.gratis = op.esGratis;
+                div.dataset.transportista = op.transportista;
+                div.innerHTML = `
+                    <i class="bi bi-truck" style="color:var(--accent);font-size:1.2rem;flex-shrink:0;"></i>
+                    <div style="flex:1;"><div style="font-size:13px;font-weight:600;">${op.transportista}</div>
+                    <div style="font-size:11px;color:var(--text-muted);">${op.descripcion}</div></div>
+                    <div style="font-size:13px;font-weight:700;color:${op.esGratis ? 'var(--success)' : 'inherit'};">
+                        ${op.esGratis ? 'Gratis' : '$' + Math.round(op.costo).toLocaleString('es-AR')}
+                    </div>`;
+                div.addEventListener('click', () => seleccionarEnvio(div, op));
+                lista.appendChild(div);
+            });
+
+            document.getElementById('opcionesEnvioWrap').style.display = '';
+            if (data.opciones.length > 0) {
+                seleccionarEnvio(lista.firstChild, data.opciones[0]);
+                if (data.opciones[0].esGratis)
+                    document.getElementById('bannerEnvioGratis').style.display = '';
+            }
+        } catch {
+            document.getElementById('envioLoading').style.display = 'none';
+            document.getElementById('envioError').textContent = 'Error al calcular el envío.';
+            document.getElementById('envioError').style.display = '';
+        }
+    });
+
+    function seleccionarEnvio(el, op) {
+        document.querySelectorAll('.opcion-envio-card').forEach(c => c.classList.remove('selected'));
+        el.classList.add('selected');
+        costoEnvioARS = op.costo;
+        document.getElementById('hCostoEnvio').value    = op.costo;
+        document.getElementById('hEsEnvioGratis').value = op.esGratis;
+        document.getElementById('hTransportista').value = op.transportista;
+        actualizarResumen();
+    }
+
+    // ── Confirmar pedido ──────────────────────────────────────────
+    document.getElementById('btnConfirmarPedido').addEventListener('click', async function () {
+        // Limpiar errores previos
+        ['errDireccion', 'errCP', 'errTransportista'].forEach(id => {
+            const el = document.getElementById(id);
+            el.textContent = '';
+            el.style.display = 'none';
+        });
+
+        let valido = true;
+
+        const dir = document.getElementById('inputDireccion').value.trim();
+        if (!dir) {
+            const el = document.getElementById('errDireccion');
+            el.textContent = 'La dirección de envío es obligatoria.';
+            el.style.display = '';
+            valido = false;
+        }
+
+        const cp = document.getElementById('inputCP').value.trim();
+        if (!cp) {
+            const el = document.getElementById('errCP');
+            el.textContent = 'El código postal es obligatorio.';
+            el.style.display = '';
+            valido = false;
+        }
+
+        const transportista = document.getElementById('hTransportista').value.trim();
+        if (!transportista) {
+            const el = document.getElementById('errTransportista');
+            el.textContent = 'Debés calcular el envío y seleccionar un transportista antes de confirmar.';
+            el.style.display = '';
+            valido = false;
+        }
+
+        if (!document.querySelector('input[name="MetodoPagoId"]:checked')) {
+            alert('Por favor, seleccioná un método de pago.');
+            valido = false;
+        }
+
+        if (!valido) return;
+
+        const totalEl = document.getElementById('resumenTotal').textContent;
+        const ok = await confirmDialog('Confirmar pedido', `Total: ${totalEl} — ¿Confirmás tu pedido?`, 'Confirmar pedido');
+        if (ok) document.getElementById('formCheckout').submit();
+    });
+</script>
+}

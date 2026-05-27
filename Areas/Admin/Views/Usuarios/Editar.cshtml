@@ -1,0 +1,75 @@
+﻿@using iOStore.Areas.Admin.Controllers
+@model EditarUsuarioViewModel
+@{
+    ViewData["Title"] = "Editar Usuario";
+    Layout = "/Views/Shared/_Layout.Admin.cshtml";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-pencil me-2"></i>Editar Usuario
+            </div>
+            <div class="card-body" style="padding:var(--sp-6)!important;">
+                <p class="text-muted small mb-3">
+                    <i class="bi bi-envelope me-1"></i><strong>@Model.Email</strong>
+                    — El email no puede modificarse.
+                </p>
+
+                <form asp-action="Editar" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="Id" />
+                    <input type="hidden" asp-for="Email" />
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="NombreCompleto" class="form-label fw-semibold"></label>
+                        <input asp-for="NombreCompleto" class="form-control" />
+                        <span asp-validation-for="NombreCompleto" class="text-danger small"></span>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Telefono" class="form-label fw-semibold"></label>
+                            <input asp-for="Telefono" class="form-control" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="FechaIncorporacion" class="form-label fw-semibold"></label>
+                            <input asp-for="FechaIncorporacion" class="form-control" type="date" />
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">
+                            Rol <small class="text-muted">(rol actual: @Model.RolActual)</small>
+                        </label>
+                        @if ((bool)(ViewBag.EsAdministrador ?? false))
+                        {
+                            <input type="text" class="form-control" value="Administrador" disabled />
+                            <small class="text-muted">El rol Administrador no puede modificarse desde esta interfaz.</small>
+                        }
+                        else
+                        {
+                            <select asp-for="NuevoRol" asp-items="Model.RolesDisponibles" class="form-select"></select>
+                            <span asp-validation-for="NuevoRol" class="text-danger small"></span>
+                        }
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save me-2"></i>Guardar cambios
+                        </button>
+                        <a asp-action="Index" class="btn btn-ghost">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

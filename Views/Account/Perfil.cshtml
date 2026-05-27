@@ -1,0 +1,85 @@
+@model PerfilViewModel
+@{
+    ViewData["Title"] = "Mi Perfil";
+    var inicial = (Model.NombreCompleto ?? Model.Email ?? "?")[0].ToString().ToUpper();
+}
+
+<div class="row justify-content-center" style="padding-top:var(--sp-6);">
+    <div class="col-md-7 col-lg-6">
+
+        <!-- Avatar + info -->
+        <div class="text-center mb-4">
+            <div style="width:72px;height:72px;border-radius:50%;background:var(--accent);
+                        color:#fff;font-size:28px;font-weight:var(--weight-bold);display:flex;
+                        align-items:center;justify-content:center;margin:0 auto var(--sp-2);">
+                @inicial
+            </div>
+            <div style="font-size:var(--text-base);font-weight:var(--weight-semibold);letter-spacing:-.01em;">@Model.NombreCompleto</div>
+            <div style="font-size:var(--text-xs);color:var(--text-muted);">
+                <i class="bi bi-calendar3 me-1"></i>Miembro desde @Model.FechaRegistro.ToString("MMMM yyyy")
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body" style="padding:var(--sp-8)!important;">
+                <h6 style="font-size:var(--text-xs);font-weight:var(--weight-semibold);letter-spacing:.08em;
+                           text-transform:uppercase;color:var(--text-muted);margin-bottom:var(--sp-6);">
+                    Información personal
+                </h6>
+
+                <!-- Email (read-only) -->
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                        <input type="text" class="form-control" value="@Model.Email" disabled />
+                    </div>
+                </div>
+
+                <form asp-action="Perfil" method="post">
+                    @Html.AntiForgeryToken()
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 mb-3" style="font-size:var(--text-xs);"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="NombreCompleto" class="form-label">Nombre completo</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-person"></i></span>
+                            <input asp-for="NombreCompleto" class="form-control" />
+                        </div>
+                        <span asp-validation-for="NombreCompleto" class="text-danger small"></span>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-7">
+                            <label asp-for="Direccion" class="form-label">Dirección</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-geo-alt"></i></span>
+                                <input asp-for="Direccion" class="form-control" placeholder="Calle y número" />
+                            </div>
+                        </div>
+                        <div class="col-md-5">
+                            <label asp-for="Telefono" class="form-label">Teléfono</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-phone"></i></span>
+                                <input asp-for="Telefono" class="form-control" placeholder="+54 11..." />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save me-2"></i>Guardar cambios
+                        </button>
+                        <a asp-controller="Home" asp-action="Index" class="btn btn-ghost">
+                            Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+}

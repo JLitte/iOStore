@@ -1,0 +1,28 @@
+## Visual Studio / .NET
+.vs/
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+## Logs
+logs/
+*.log
+
+## Publicación / deploy
+publish/
+wwwroot/lib/
+
+# Configuración sensible — NO subir al repositorio
+appsettings.Development.json
+appsettings.Production.json
+appsettings.*.local.json
+*.env
+.env
+Claves_iOStore.txt
+secrets.json

@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\litte\\\\Desktop\\\\Juan\\\\iOStore\" -Recurse -Directory)",
+      "Bash(Select-Object FullName)",
+      "Bash(Head -30)",
+      "Bash(pip show *)",
+      "Bash(python generar_doc.py)",
+      "Bash(python *)",
+      "Bash(del *)"
+    ]
+  }
+}

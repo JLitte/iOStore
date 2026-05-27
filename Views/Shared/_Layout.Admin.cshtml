@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] — iOStore Admin</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/flatly/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <style>
+        /* Admin no tiene navbar fija — resetear padding-top */
+        body { padding-top: 0 !important; }
+    </style>
+</head>
+<body class="no-fixed-nav">
+
+    <!-- ── Mobile sidebar toggle ──────────────────────────────────────── -->
+    <button id="adminSidebarToggle" class="admin-sidebar-toggle" aria-label="Menú">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <!-- ── Sidebar ────────────────────────────────────────────────────── -->
+    <aside class="admin-sidebar">
+        <!-- Header -->
+        <div class="admin-sidebar-header">
+            <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index"
+               style="text-decoration:none;display:flex;align-items:center;gap:8px;">
+                <i class="bi bi-apple" style="color:white;font-size:18px;"></i>
+                <span class="sidebar-logo">iOStore</span>
+            </a>
+            <span class="sidebar-badge ms-1">Admin</span>
+        </div>
+
+        <!-- Nav -->
+        <nav class="admin-sidebar-nav">
+            <div class="nav-section-label">Principal</div>
+
+            <a class="admin-nav-item @(ViewContext.RouteData.Values["controller"]?.ToString() == "Dashboard" ? "active" : "")"
+               asp-area="Admin" asp-controller="Dashboard" asp-action="Index">
+                <i class="bi bi-speedometer2"></i> Dashboard
+            </a>
+
+            <div class="nav-section-label">Catálogo</div>
+
+            <a class="admin-nav-item @(ViewContext.RouteData.Values["controller"]?.ToString() == "Producto" ? "active" : "")"
+               asp-area="" asp-controller="Producto" asp-action="Index">
+                <i class="bi bi-box-seam"></i> Productos
+            </a>
+
+            <a class="admin-nav-item @(ViewContext.RouteData.Values["controller"]?.ToString() == "Categorias" ? "active" : "")"
+               asp-area="Admin" asp-controller="Categorias" asp-action="Index">
+                <i class="bi bi-tags"></i> Categorías
+            </a>
+
+            <div class="nav-section-label">Pedidos</div>
+
+            <a class="admin-nav-item @(ViewContext.RouteData.Values["controller"]?.ToString() == "Pedido" ? "active" : "")"
+               asp-area="" asp-controller="Pedido" asp-action="Index">
+                <i class="bi bi-bag-check"></i> Pedidos
+            </a>
+
+            @if (User.IsInRole("Administrador"))
+            {
+                <div class="nav-section-label">Usuarios</div>
+
+                <a class="admin-nav-item @(ViewContext.RouteData.Values["controller"]?.ToString() == "Usuarios" ? "active" : "")"
+                   asp-area="Admin" asp-controller="Usuarios" asp-action="Index">
+                    <i class="bi bi-people"></i> Usuarios
+                </a>
+
+                <div class="nav-section-label">Configuración</div>
+
+                <a class="admin-nav-item @(ViewContext.RouteData.Values["controller"]?.ToString() == "Tarifas" ? "active" : "")"
+                   asp-area="Admin" asp-controller="Tarifas" asp-action="Index">
+                    <i class="bi bi-truck"></i> Tarifas de envío
+                </a>
+
+                <a class="admin-nav-item @(ViewContext.RouteData.Values["controller"]?.ToString() == "MetodosPago" ? "active" : "")"
+                   asp-area="Admin" asp-controller="MetodosPago" asp-action="Index">
+                    <i class="bi bi-credit-card"></i> Métodos de pago
+                </a>
+
+                <a class="admin-nav-item @(ViewContext.RouteData.Values["controller"]?.ToString() == "Configuracion" ? "active" : "")"
+                   asp-area="Admin" asp-controller="Configuracion" asp-action="Notificaciones">
+                    <i class="bi bi-envelope-gear"></i> Notificaciones SMTP
+                </a>
+            }
+
+            <div class="nav-section-label" style="margin-top:auto;"></div>
+
+            <a class="admin-nav-item" asp-area="" asp-controller="Producto" asp-action="Catalogo"
+               style="opacity:.7;">
+                <i class="bi bi-arrow-left"></i> Ver tienda
+            </a>
+        </nav>
+
+        <!-- Footer con usuario -->
+        <div class="admin-sidebar-footer">
+            <div class="admin-user">
+                <div class="admin-user-avatar">
+                    @(User.Identity?.Name?.Split('@')[0]?.Substring(0, 1).ToUpper())
+                </div>
+                <div class="admin-user-meta">
+                    <div class="admin-user-name">@User.Identity?.Name?.Split('@')[0]</div>
+                    <div class="admin-user-role">
+                        @if (User.IsInRole("Administrador")) { <span>Administrador</span> }
+                        else if (User.IsInRole("AdminEmpleado")) { <span>Empleado</span> }
+                        else { <span>Usuario</span> }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ── Contenido principal ────────────────────────────────────────── -->
+    <main class="admin-main-content">
+
+        <!-- Alertas -->
+        @if (TempData["Success"] != null)
+        {
+            <div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
+                <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+        @if (TempData["Error"] != null)
+        {
+            <div class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
+                <i class="bi bi-exclamation-triangle me-2"></i>@TempData["Error"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+        @if (TempData["Info"] != null)
+        {
+            <div class="alert alert-info alert-dismissible fade show mb-4" role="alert">
+                <i class="bi bi-info-circle me-2"></i>@TempData["Info"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+
+        @RenderBody()
+    </main>
+
+    <!-- Toast container -->
+    <div id="toastContainer"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,69 @@
+@model iOStore.Models.Pedido
+@{
+    ViewData["Title"] = "Pedido confirmado";
+}
+
+<div class="text-center" style="padding:var(--sp-12) 0;">
+    <div style="width:72px;height:72px;border-radius:50%;background:var(--success);
+                color:#fff;font-size:2rem;display:flex;align-items:center;justify-content:center;
+                margin:0 auto var(--sp-4);">
+        <i class="bi bi-check2"></i>
+    </div>
+    <h2 style="font-size:var(--text-2xl);font-weight:var(--weight-bold);letter-spacing:-.02em;margin-bottom:var(--sp-2);">
+        ¡Pedido #@Model.Id confirmado!
+    </h2>
+    <p style="font-size:var(--text-base);color:var(--text-muted);max-width:420px;margin:0 auto var(--sp-8);">
+        Gracias por tu compra. Te contactaremos cuando tu pedido esté en camino.
+    </p>
+
+    <div class="card" style="max-width:440px;margin:0 auto var(--sp-8);">
+        <div class="card-body" style="padding:var(--sp-6)!important;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-4);text-align:left;">
+                <div>
+                    <div style="font-size:var(--text-xs);font-weight:var(--weight-semibold);letter-spacing:.06em;
+                                text-transform:uppercase;color:var(--text-muted);">Pedido N°</div>
+                    <div style="font-weight:var(--weight-bold);font-size:var(--text-base);">#@Model.Id</div>
+                </div>
+                <div>
+                    <div style="font-size:var(--text-xs);font-weight:var(--weight-semibold);letter-spacing:.06em;
+                                text-transform:uppercase;color:var(--text-muted);">Fecha</div>
+                    <div style="font-size:var(--text-sm);">@Model.FechaPedido.ToString("dd/MM/yyyy HH:mm")</div>
+                </div>
+                <div>
+                    <div style="font-size:var(--text-xs);font-weight:var(--weight-semibold);letter-spacing:.06em;
+                                text-transform:uppercase;color:var(--text-muted);">Estado</div>
+                    <div><span class="badge badge-@iOStore.Helpers.FormatHelper.BadgeEstado(Model.EstadoActual)">
+                        @iOStore.Helpers.FormatHelper.DisplayEstado(Model.EstadoActual)
+                    </span></div>
+                </div>
+                <div>
+                    <div style="font-size:var(--text-xs);font-weight:var(--weight-semibold);letter-spacing:.06em;
+                                text-transform:uppercase;color:var(--text-muted);">Total</div>
+                    <div style="font-weight:var(--weight-bold);font-size:var(--text-lg);color:var(--success);">
+                        @if (Model.TipoMonedaPago == "USD_CaraGrande" || Model.TipoMonedaPago == "USD_CaraChica" || Model.TipoMonedaPago == "USDT")
+                        {
+                            <text>USD @((Model.PrecioFinalUSD ?? Model.Total).ToString("N2"))</text>
+                        }
+                        else if (Model.TotalConRecargo > 0)
+                        {
+                            <text>$@Model.TotalConRecargo.ToString("N0")</text>
+                        }
+                        else
+                        {
+                            <text>$@Model.Total.ToString("N0")</text>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-3 justify-content-center">
+        <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-ghost">
+            <i class="bi bi-receipt me-2"></i>Ver detalle
+        </a>
+        <a asp-controller="Producto" asp-action="Catalogo" class="btn btn-primary">
+            <i class="bi bi-grid me-2"></i>Seguir comprando
+        </a>
+    </div>
+</div>

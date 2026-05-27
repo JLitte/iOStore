@@ -1,0 +1,45 @@
+@model iOStore.Models.ErrorViewModel
+@{
+    ViewData["Title"] = Model.StatusCode switch
+    {
+        404 => "Página no encontrada",
+        403 => "Acceso denegado",
+        _   => "Error del servidor"
+    };
+    var iconName = Model.StatusCode switch
+    {
+        404 => "bi-search",
+        403 => "bi-lock",
+        _   => "bi-exclamation-triangle"
+    };
+    var iconColor = Model.StatusCode switch
+    {
+        404 => "var(--text-muted)",
+        403 => "var(--danger)",
+        _   => "var(--warning)"
+    };
+}
+
+<div class="text-center" style="padding:var(--sp-12) 0;">
+    <div style="font-size:3.5rem;color:@iconColor;margin-bottom:var(--sp-4);">
+        <i class="bi @iconName"></i>
+    </div>
+    <div style="font-size:80px;font-weight:var(--weight-bold);letter-spacing:-.04em;
+                color:var(--text-primary);line-height:1;margin-bottom:var(--sp-2);">
+        @Model.StatusCode
+    </div>
+    <h2 style="font-size:var(--text-xl);font-weight:var(--weight-semibold);margin-bottom:var(--sp-2);">@ViewData["Title"]</h2>
+    <p style="font-size:var(--text-base);color:var(--text-muted);max-width:480px;margin:0 auto var(--sp-8);">
+        @Model.Message
+    </p>
+    <a asp-area="" asp-controller="Home" asp-action="Index" class="btn btn-primary px-5">
+        <i class="bi bi-house me-2"></i>Ir al inicio
+    </a>
+
+    @if (Model.ShowRequestId)
+    {
+        <p style="font-size:var(--text-xs);color:var(--text-muted);margin-top:var(--sp-8);">
+            ID de solicitud: <code>@Model.RequestId</code>
+        </p>
+    }
+</div>

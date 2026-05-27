@@ -1,0 +1,234 @@
+@model iOStore.Models.CarritoViewModel
+@{
+    ViewData["Title"] = "Mi Carrito";
+}
+
+<h2 class="cart-title fade-in-up">
+    Mi carrito
+    @if (Model.Items.Any())
+    {
+        <span style="font-size:16px;font-weight:400;color:var(--apple-muted);margin-left:8px;">
+            (@Model.TotalItems producto@(Model.TotalItems != 1 ? "s" : ""))
+        </span>
+    }
+</h2>
+
+@if (!Model.Items.Any())
+{
+    <!-- Estado vacío -->
+    <div class="cart-empty fade-in-up">
+        <i class="bi bi-bag cart-empty-icon"></i>
+        <div class="cart-empty-title">Tu carrito está vacío</div>
+        <p class="cart-empty-desc">Explorá el catálogo y agregá los productos que querés.</p>
+        <a asp-controller="Producto" asp-action="Catalogo" class="btn-apple-primary">
+            <i class="bi bi-grid me-2"></i>Explorar productos
+        </a>
+    </div>
+}
+else
+{
+    <div class="cart-layout">
+        <!-- ── Lista ítems ──────────────────────────────────────────────── -->
+        <div>
+            <div class="cart-panel">
+                <div class="cart-panel-header">
+                    <span><i class="bi bi-bag me-2"></i>Productos</span>
+                    <button class="btn-remove-cart" id="btnVaciar" style="font-size:13px;gap:4px;padding:5px 10px;border-radius:6px;">
+                        <i class="bi bi-trash3"></i>Vaciar carrito
+                    </button>
+                </div>
+
+                @foreach (var item in Model.Items)
+                {
+                    <div class="cart-item-row" id="row_@item.Id">
+                        <!-- Imagen -->
+                        <div class="cart-item-img">
+                            <img src="@(item.ImagenUrl ?? "/images/no-image.png")"
+                                 alt="@item.Modelo" />
+                        </div>
+
+                        <!-- Info -->
+                        <div class="flex-grow-1 min-width-0">
+                            <div class="cart-item-name">@item.Modelo</div>
+                            <div class="cart-item-meta">@item.TipoProducto</div>
+                            <div class="cart-item-price">$@item.Precio.ToString("N0") c/u</div>
+                        </div>
+
+                        <!-- Stepper cantidad -->
+                        <div class="d-flex flex-column align-items-center gap-1">
+                            <div class="qty-stepper-apple">
+                                <button class="qty-btn btn-qty-dec" data-id="@item.Id"
+                                        type="button" aria-label="Disminuir">−</button>
+                                <input type="number" class="qty-input-apple no-spin qty-input"
+                                       data-id="@item.Id"
+                                       value="@item.Cantidad" min="1" max="@item.Stock"
+                                       aria-label="Cantidad" />
+                                <button class="qty-btn btn-qty-inc" data-id="@item.Id"
+                                        type="button" aria-label="Aumentar">+</button>
+                            </div>
+                            <span style="font-size:11px;color:var(--apple-muted);">
+                                Máx. @item.Stock
+                            </span>
+                        </div>
+
+                        <!-- Subtotal -->
+                        <div class="cart-item-subtotal" id="sub_@item.Id">
+                            $@item.Subtotal.ToString("N0")
+                        </div>
+
+                        <!-- Eliminar -->
+                        <button class="btn-remove-cart btn-eliminar" data-id="@item.Id"
+                                aria-label="Eliminar @item.Modelo" type="button">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                }
+            </div>
+
+            <div class="mt-3">
+                <a asp-controller="Producto" asp-action="Catalogo" class="btn-keep-shopping">
+                    <i class="bi bi-arrow-left"></i>Seguir comprando
+                </a>
+            </div>
+        </div>
+
+        <!-- ── Resumen pedido ────────────────────────────────────────────── -->
+        <div class="cart-summary fade-in-up">
+            <div class="cart-summary-title">Resumen del pedido</div>
+
+            <div class="summary-line">
+                <span class="label">Productos</span>
+                <span id="totalItemsLabel">@Model.TotalItems</span>
+            </div>
+            <div class="summary-line">
+                <span class="label">Envío</span>
+                <span style="color:var(--success);font-weight:600;">Gratis</span>
+            </div>
+            <div class="summary-total-line">
+                <span>Total</span>
+                <span id="totalLabel">$@Model.Total.ToString("N0")</span>
+            </div>
+
+            <a asp-controller="Pedido" asp-action="Checkout" class="btn-checkout-main">
+                <i class="bi bi-bag-check"></i>Finalizar compra
+            </a>
+
+            <p style="font-size:12px;color:var(--apple-muted);text-align:center;margin-top:12px;">
+                <i class="bi bi-shield-check me-1"></i>Compra segura · Garantía oficial
+            </p>
+        </div>
+    </div>
+}
+
+@Html.AntiForgeryToken()
+
+@section Scripts {
+    <script>
+        const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+        function post(url, body) {
+            return fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'RequestVerificationToken': token
+                },
+                body: body
+            }).then(r => r.json());
+        }
+
+        function actualizarTotales(data) {
+            if (data.total !== undefined) {
+                const lbl = document.getElementById('totalLabel');
+                if (lbl) lbl.textContent = '$' + data.total.toLocaleString('es-AR', { minimumFractionDigits: 0 });
+            }
+            if (data.totalItems !== undefined) {
+                const itemsLbl = document.getElementById('totalItemsLabel');
+                if (itemsLbl) itemsLbl.textContent = data.totalItems;
+            }
+            const badge = document.getElementById('carritoCount');
+            if (badge && data.totalItems !== undefined) {
+                badge.textContent = data.totalItems;
+                badge.style.display = data.totalItems > 0 ? 'inline-flex' : 'none';
+            }
+        }
+
+        // Botones +/-
+        document.querySelectorAll('.btn-qty-dec').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const id     = this.dataset.id;
+                const input  = document.querySelector(`.qty-input[data-id="${id}"]`);
+                const newQty = parseInt(input.value) - 1;
+                if (newQty <= 0) { eliminarItem(id); return; }
+                input.value = newQty;
+                actualizarCantidad(id, newQty);
+            });
+        });
+
+        document.querySelectorAll('.btn-qty-inc').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const id     = this.dataset.id;
+                const input  = document.querySelector(`.qty-input[data-id="${id}"]`);
+                const max    = parseInt(input.max);
+                const newQty = parseInt(input.value) + 1;
+                if (newQty > max) { window.toast?.warning(`Stock máximo: ${max}`); return; }
+                input.value = newQty;
+                actualizarCantidad(id, newQty);
+            });
+        });
+
+        function actualizarCantidad(id, cantidad) {
+            post('/Carrito/ActualizarCantidad', `carritoItemId=${id}&cantidad=${cantidad}`)
+                .then(data => {
+                    if (data.success) {
+                        actualizarTotales(data);
+                        const sub = document.getElementById(`sub_${id}`);
+                        if (sub && data.subtotalItem !== undefined)
+                            sub.textContent = '$' + data.subtotalItem.toLocaleString('es-AR', { minimumFractionDigits: 0 });
+                    } else {
+                        window.toast?.error(data.message);
+                    }
+                });
+        }
+
+        // Eliminar ítem
+        document.querySelectorAll('.btn-eliminar').forEach(btn => {
+            btn.addEventListener('click', function () { eliminarItem(this.dataset.id); });
+        });
+
+        function eliminarItem(id) {
+            post('/Carrito/EliminarDelCarrito', `carritoItemId=${id}`)
+                .then(data => {
+                    if (data.success) {
+                        const row = document.getElementById(`row_${id}`);
+                        if (row) {
+                            row.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+                            row.style.opacity    = '0';
+                            row.style.transform  = 'translateX(20px)';
+                            setTimeout(() => {
+                                row.remove();
+                                actualizarTotales(data);
+                                if (data.totalItems === 0) location.reload();
+                            }, 220);
+                        }
+                    } else {
+                        window.toast?.error(data.message);
+                    }
+                });
+        }
+
+        // Vaciar carrito
+        const btnVaciar = document.getElementById('btnVaciar');
+        if (btnVaciar) {
+            btnVaciar.addEventListener('click', async function () {
+                const ok = await confirmDialog(
+                    '¿Vaciar el carrito?',
+                    'Se eliminarán todos los productos del carrito.'
+                );
+                if (!ok) return;
+                post('/Carrito/VaciarCarrito', '')
+                    .then(data => { if (data.success) location.reload(); });
+            });
+        }
+    </script>
+}

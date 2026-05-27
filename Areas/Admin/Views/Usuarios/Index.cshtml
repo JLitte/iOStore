@@ -1,0 +1,207 @@
+@using iOStore.Areas.Admin.Controllers
+@using iOStore.Helpers
+@model List<UsuarioListItem>
+@{
+    ViewData["Title"] = "Gestión de Usuarios";
+    Layout = "/Views/Shared/_Layout.Admin.cshtml";
+    int totalPages = ViewBag.TotalPages;
+    int pagina = ViewBag.Pagina;
+}
+
+<!-- Page header -->
+<div class="admin-page-header d-flex justify-content-between align-items-center flex-wrap gap-3">
+    <div>
+        <div class="admin-page-title">Usuarios</div>
+        <div class="admin-page-sub">@Model.Count usuario(s) en esta página</div>
+    </div>
+    <a asp-action="Crear" class="btn btn-primary">
+        <i class="bi bi-person-plus me-2"></i>Nuevo usuario
+    </a>
+</div>
+
+<!-- Filtros -->
+<div class="card mb-4">
+    <div class="card-body" style="padding:var(--sp-4) var(--sp-6)!important;">
+        <form asp-action="Index" method="get">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-5">
+                    <label class="form-label">Buscar</label>
+                    <input type="text" name="buscar" value="@ViewBag.Buscar"
+                           class="form-control form-control-sm"
+                           placeholder="Nombre o email..." />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Rol</label>
+                    <select name="rolFiltro" class="form-select form-select-sm">
+                        <option value="">Todos los roles</option>
+                        @foreach (var r in (string[])ViewBag.Roles)
+                        {
+                            <option value="@r" selected="@(ViewBag.RolFiltro == r)">@r</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                        <i class="bi bi-search me-1"></i>Buscar
+                    </button>
+                </div>
+                <div class="col-md-2">
+                    <a asp-action="Index" class="btn btn-secondary btn-sm w-100">Limpiar</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tabla de usuarios -->
+<!-- IMPORTANTE: table-responsive SIN overflow:hidden para no cortar dropdowns de acciones -->
+<div class="card">
+    <div class="card-body" style="padding:0!important;overflow:visible;">
+        <div style="overflow-x:auto;">
+            <table class="table mb-0">
+                <thead>
+                    <tr>
+                        <th>Usuario</th>
+                        <th>Email</th>
+                        <th>Rol</th>
+                        <th>Estado</th>
+                        <th>Teléfono</th>
+                        <th>Registro</th>
+                        <th>Incorporación</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var u in Model)
+                    {
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div style="width:32px;height:32px;border-radius:50%;
+                                                background:var(--accent-subtle);color:var(--accent);
+                                                display:flex;align-items:center;justify-content:center;
+                                                font-size:var(--text-xs);font-weight:var(--weight-bold);flex-shrink:0;">
+                                        @(u.NombreCompleto?.Substring(0, 1).ToUpper())
+                                    </div>
+                                    <span style="font-weight:var(--weight-semibold);font-size:var(--text-sm);">@u.NombreCompleto</span>
+                                </div>
+                            </td>
+                            <td style="font-size:var(--text-xs);color:var(--text-muted);">@u.Email</td>
+                            <td>
+                                @foreach (var r in u.Roles)
+                                {
+                                    var cls = r == Roles.Administrador ? "badge-cancelado"
+                                            : r == Roles.AdminEmpleado ? "badge-pendiente"
+                                            : "badge-procesando";
+                                    <span class="badge @cls">@r</span>
+                                }
+                            </td>
+                            <td>
+                                @if (u.Activo)
+                                {
+                                    <span class="badge badge-entregado">Activo</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-cancelado">Inactivo</span>
+                                }
+                            </td>
+                            <td style="font-size:var(--text-xs);">@(u.Telefono ?? "—")</td>
+                            <td style="font-size:var(--text-xs);color:var(--text-muted);">@u.FechaRegistro.ToString("dd/MM/yy")</td>
+                            <td style="font-size:var(--text-xs);color:var(--text-muted);">@(u.FechaIncorporacion?.ToString("dd/MM/yy") ?? "—")</td>
+                            <td class="text-center">
+                                <div class="d-flex justify-content-center gap-1">
+                                    <a asp-action="Editar" asp-route-id="@u.Id"
+                                       class="btn btn-secondary btn-sm" title="Editar">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <form asp-action="ResetPassword" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@u.Id" />
+                                        <button class="btn btn-secondary btn-sm" title="Restablecer contraseña"
+                                                data-confirm="¿Restablecer la contraseña de @u.NombreCompleto?">
+                                            <i class="bi bi-key"></i>
+                                        </button>
+                                    </form>
+                                    <form asp-action="ToggleActivo" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@u.Id" />
+                                        @if (u.Activo)
+                                        {
+                                            <button class="btn btn-danger-ghost btn-sm" title="Desactivar usuario"
+                                                    data-confirm="¿Desactivar la cuenta de @u.NombreCompleto?">
+                                                <i class="bi bi-person-x"></i>
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn-secondary btn-sm" title="Reactivar usuario"
+                                                    data-confirm="¿Reactivar la cuenta de @u.NombreCompleto?">
+                                                <i class="bi bi-person-check"></i>
+                                            </button>
+                                        }
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Any())
+                    {
+                        <tr>
+                            <td colspan="8" class="text-center py-5 text-muted" style="font-size:var(--text-sm);">
+                                No se encontraron usuarios.
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Paginación -->
+@if (totalPages > 1)
+{
+    <nav class="mt-4" aria-label="Paginación">
+        <ul class="pagination justify-content-center">
+            <li class="page-item @(pagina == 1 ? "disabled" : "")">
+                <a class="page-link" asp-action="Index"
+                   asp-route-pagina="@(pagina - 1)" asp-route-buscar="@ViewBag.Buscar"
+                   asp-route-rolFiltro="@ViewBag.RolFiltro">
+                    <i class="bi bi-chevron-left"></i>
+                </a>
+            </li>
+            @for (int p = 1; p <= totalPages; p++)
+            {
+                <li class="page-item @(p == pagina ? "active" : "")">
+                    <a class="page-link" asp-action="Index"
+                       asp-route-pagina="@p" asp-route-buscar="@ViewBag.Buscar"
+                       asp-route-rolFiltro="@ViewBag.RolFiltro">
+                        @p
+                    </a>
+                </li>
+            }
+            <li class="page-item @(pagina == totalPages ? "disabled" : "")">
+                <a class="page-link" asp-action="Index"
+                   asp-route-pagina="@(pagina + 1)" asp-route-buscar="@ViewBag.Buscar"
+                   asp-route-rolFiltro="@ViewBag.RolFiltro">
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            </li>
+        </ul>
+    </nav>
+}
+
+@section Scripts {
+    <script>
+        // Reemplazar confirm() nativo en botones con data-confirm
+        document.querySelectorAll('[data-confirm]').forEach(btn => {
+            btn.addEventListener('click', async function (e) {
+                e.preventDefault();
+                const msg = this.dataset.confirm;
+                const ok = await confirmDialog(msg, 'Esta acción no se puede deshacer.');
+                if (ok) this.closest('form').submit();
+            });
+        });
+    </script>
+}

@@ -1,0 +1,98 @@
+@{
+    ViewData["Title"] = "Reportes de Ventas";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 style="font-size:var(--text-xl);font-weight:var(--weight-bold);letter-spacing:-.02em;margin:0;">
+        <i class="bi bi-bar-chart-line me-2" style="color:var(--accent);"></i>Reportes de ventas
+    </h2>
+</div>
+
+<!-- Métricas -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body" style="padding:var(--sp-6)!important;position:relative;">
+                <div style="font-size:var(--text-xs);font-weight:var(--weight-semibold);letter-spacing:.08em;
+                            text-transform:uppercase;color:var(--text-muted);margin-bottom:var(--sp-1);">
+                    Pedidos hoy
+                </div>
+                <div id="pedidosHoy" style="font-size:var(--text-2xl);font-weight:var(--weight-bold);letter-spacing:-.03em;">—</div>
+                <i class="bi bi-bag" style="font-size:1.4rem;color:var(--accent);opacity:.5;
+                                            position:absolute;right:20px;top:50%;transform:translateY(-50%);"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body" style="padding:var(--sp-6)!important;">
+                <div style="font-size:var(--text-xs);font-weight:var(--weight-semibold);letter-spacing:.08em;
+                            text-transform:uppercase;color:var(--text-muted);margin-bottom:var(--sp-1);">
+                    Ventas hoy
+                </div>
+                <div id="ventasHoy" style="font-size:var(--text-2xl);font-weight:var(--weight-bold);letter-spacing:-.03em;color:var(--success);">—</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body" style="padding:var(--sp-6)!important;">
+                <div style="font-size:var(--text-xs);font-weight:var(--weight-semibold);letter-spacing:.08em;
+                            text-transform:uppercase;color:var(--text-muted);margin-bottom:var(--sp-1);">
+                    Pedidos del mes
+                </div>
+                <div id="pedidosMes" style="font-size:var(--text-2xl);font-weight:var(--weight-bold);letter-spacing:-.03em;">—</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body" style="padding:var(--sp-6)!important;">
+                <div style="font-size:var(--text-xs);font-weight:var(--weight-semibold);letter-spacing:.08em;
+                            text-transform:uppercase;color:var(--text-muted);margin-bottom:var(--sp-1);">
+                    Ventas del mes
+                </div>
+                <div id="ventasMes" style="font-size:var(--text-2xl);font-weight:var(--weight-bold);letter-spacing:-.03em;color:var(--success);">—</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card" style="height:100%;">
+            <div class="card-body" style="padding:var(--sp-6)!important;">
+                <h6 style="font-size:var(--text-xs);font-weight:var(--weight-semibold);margin-bottom:var(--sp-4);">
+                    <i class="bi bi-pie-chart me-2"></i>Pedidos por estado
+                </h6>
+                <canvas id="chartPedidosEstado" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card" style="height:100%;">
+            <div class="card-body" style="padding:var(--sp-6)!important;">
+                <h6 style="font-size:var(--text-xs);font-weight:var(--weight-semibold);margin-bottom:var(--sp-4);">
+                    <i class="bi bi-trophy me-2"></i>Productos más vendidos
+                </h6>
+                <div id="topProductos">
+                    <div style="color:var(--text-muted);font-size:var(--text-xs);text-align:center;padding:var(--sp-6);">
+                        <i class="bi bi-hourglass-split me-1"></i>Cargando datos...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script>
+        // Placeholder — conectar a endpoints AJAX del DashboardController en próxima iteración
+        document.getElementById('pedidosHoy').textContent = '—';
+        document.getElementById('ventasHoy').textContent  = '—';
+        document.getElementById('pedidosMes').textContent = '—';
+        document.getElementById('ventasMes').textContent  = '—';
+        document.getElementById('topProductos').innerHTML = '<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:24px;">Ver el Dashboard para reportes detallados.</div>';
+    </script>
+}

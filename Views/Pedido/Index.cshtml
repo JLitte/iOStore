@@ -1,0 +1,225 @@
+@using iOStore.Helpers
+@using iOStore.Models
+@model PaginatedList<iOStore.Models.Pedido>
+@{
+    ViewData["Title"] = "Pedidos";
+    var todosEstados = (EstadoPedido[])ViewBag.TodosEstados;
+    bool isAdmin = User.IsInRole(Roles.Administrador) || User.IsInRole(Roles.AdminEmpleado);
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 style="font-size:var(--text-xl);font-weight:var(--weight-bold);letter-spacing:-.02em;margin:0;">
+        <i class="bi bi-bag-check me-2" style="color:var(--accent);"></i>
+        @(isAdmin ? "Todos los pedidos" : "Mis pedidos")
+    </h2>
+</div>
+
+@Html.AntiForgeryToken()
+
+<!-- Filtros de estado (pills) -->
+<div class="mb-4 d-flex gap-2 flex-wrap">
+    <a asp-action="Index"
+       class="btn btn-sm @(ViewBag.Estado == null ? "btn-primary" : "btn-ghost")"
+       style="border-radius:20px;">
+        Todos
+    </a>
+    @foreach (var e in todosEstados)
+    {
+        bool activo = ViewBag.Estado == e.ToString();
+        <a asp-action="Index" asp-route-estado="@e"
+           class="btn btn-sm @(activo ? "badge-" + FormatHelper.BadgeEstado(e) : "btn-ghost")"
+           style="border-radius:20px;">
+            @FormatHelper.DisplayEstado(e)
+        </a>
+    }
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>N° Seguimiento</th>
+                        <th>Fecha</th>
+                        @if (isAdmin)
+                        {
+                            <th>Cliente</th>
+                        }
+                        <th>Estado</th>
+                        @if (isAdmin)
+                        {
+                            <th>Límite de pago</th>
+                        }
+                        <th class="text-end">Total</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in Model)
+                    {
+                        <tr>
+                            <td style="font-weight:var(--weight-semibold);color:var(--text-primary);font-family:monospace;">
+                                @(p.NumeroSeguimiento ?? $"#{p.Id}")
+                            </td>
+                            <td style="font-size:var(--text-xs);color:var(--text-muted);">
+                                @p.FechaPedido.ToString("dd/MM/yyyy HH:mm")
+                            </td>
+                            @if (isAdmin)
+                            {
+                                <td style="font-size:var(--text-xs);">@(p.NombreCliente ?? p.Usuario?.NombreCompleto)</td>
+                            }
+                            <td>
+                                <span class="badge badge-@FormatHelper.BadgeEstado(p.EstadoActual)">
+                                    @FormatHelper.DisplayEstado(p.EstadoActual)
+                                </span>
+                            </td>
+                            @if (isAdmin)
+                            {
+                                <td style="font-size:var(--text-xs);white-space:nowrap;">
+                                    @{
+                                        bool estadoTerminal = p.EstadoActual == EstadoPedido.Cancelado
+                                                           || p.EstadoActual == EstadoPedido.Entregado
+                                                           || p.EstadoActual == EstadoPedido.Devuelto;
+                                    }
+                                    @if (!estadoTerminal && p.FechaLimitePago.HasValue)
+                                    {
+                                        var ahora = DateTime.Now;
+                                        var diff  = p.FechaLimitePago.Value - ahora;
+                                        if (diff.TotalSeconds > 0)
+                                        {
+                                            int horas = (int)diff.TotalHours;
+                                            <span style="color:var(--success,#198754);font-weight:var(--weight-semibold);">
+                                                @p.FechaLimitePago.Value.ToString("dd/MM HH:mm")
+                                                <br /><small>Vence en @horas hs</small>
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            int horas = (int)Math.Abs(diff.TotalHours);
+                                            <span style="color:var(--danger,#dc3545);font-weight:var(--weight-semibold);">
+                                                ⚠ Vencido hace @horas hs
+                                            </span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span style="color:var(--text-muted);">—</span>
+                                    }
+                                </td>
+                            }
+                            <td class="text-end" style="font-weight:var(--weight-semibold);color:var(--success);">
+                                @if (p.TipoMonedaPago == "USD_CaraGrande" || p.TipoMonedaPago == "USD_CaraChica" || p.TipoMonedaPago == "USDT")
+                                {
+                                    <text>USD @((p.PrecioFinalUSD ?? p.Total).ToString("N2"))</text>
+                                }
+                                else if (p.TotalConRecargo > 0)
+                                {
+                                    <text>$@p.TotalConRecargo.ToString("N0")</text>
+                                }
+                                else
+                                {
+                                    <text>$@p.Total.ToString("N0")</text>
+                                }
+                            </td>
+                            <td>
+                                <div class="d-flex gap-2 align-items-center">
+                                    <a asp-action="Details" asp-route-id="@p.Id"
+                                       class="btn btn-ghost btn-sm">
+                                        <i class="bi bi-eye me-1"></i>Ver
+                                    </a>
+                                    @if (isAdmin)
+                                    {
+                                        <select class="form-select form-select-sm estado-select"
+                                                data-id="@p.Id"
+                                                style="width:auto;font-size:var(--text-xs);">
+                                            <option value="">— estado —</option>
+                                            @foreach (var e in todosEstados)
+                                            {
+                                                if (e == p.EstadoActual)
+                                                {
+                                                    <option value="@e" selected>@FormatHelper.DisplayEstado(e)</option>
+                                                }
+                                                else
+                                                {
+                                                    <option value="@e">@FormatHelper.DisplayEstado(e)</option>
+                                                }
+                                            }
+                                        </select>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Any())
+                    {
+                        <tr>
+                            <td colspan="7" class="text-center py-5" style="color:var(--text-muted);">
+                                <i class="bi bi-bag-x" style="font-size:2rem;display:block;margin-bottom:var(--sp-2);"></i>
+                                No hay pedidos que mostrar.
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@if (Model.TotalPages > 1)
+{
+    <nav class="mt-3">
+        <ul class="pagination pagination-sm justify-content-center">
+            <li class="page-item @(!Model.HasPreviousPage ? "disabled" : "")">
+                <a class="page-link" asp-action="Index"
+                   asp-route-pagina="@(Model.PageIndex - 1)"
+                   asp-route-estado="@ViewBag.Estado">&laquo;</a>
+            </li>
+            @for (int i = 1; i <= Model.TotalPages; i++)
+            {
+                <li class="page-item @(i == Model.PageIndex ? "active" : "")">
+                    <a class="page-link" asp-action="Index"
+                       asp-route-pagina="@i"
+                       asp-route-estado="@ViewBag.Estado">@i</a>
+                </li>
+            }
+            <li class="page-item @(!Model.HasNextPage ? "disabled" : "")">
+                <a class="page-link" asp-action="Index"
+                   asp-route-pagina="@(Model.PageIndex + 1)"
+                   asp-route-estado="@ViewBag.Estado">&raquo;</a>
+            </li>
+        </ul>
+    </nav>
+}
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('.estado-select').forEach(sel => {
+            sel.addEventListener('change', function () {
+                const pedidoId    = this.dataset.id;
+                const nuevoEstado = this.value;
+                if (!nuevoEstado) return;
+                const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+
+                fetch('/Pedido/CambiarEstadoAjax', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'RequestVerificationToken': token
+                    },
+                    body: `pedidoId=${pedidoId}&nuevoEstado=${encodeURIComponent(nuevoEstado)}`
+                })
+                .then(r => r.json())
+                .then(d => {
+                    if (d.success) {
+                        window.toast?.success(`Estado actualizado.`);
+                        setTimeout(() => location.reload(), 800);
+                    } else {
+                        window.toast?.error(d.message || 'Transición no permitida.');
+                        this.value = this.querySelector('[selected]')?.value || '';
+                    }
+                });
+            });
+        });
+    </script>
+}

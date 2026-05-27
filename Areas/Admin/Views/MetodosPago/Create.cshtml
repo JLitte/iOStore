@@ -1,0 +1,100 @@
+@model iOStore.Models.MetodoPago
+@using iOStore.Models
+@{
+    ViewData["Title"] = "Nuevo Método de Pago";
+    Layout = "/Views/Shared/_Layout.Admin.cshtml";
+}
+
+<div class="d-flex align-items-center gap-3 mb-4">
+    <a asp-action="Index" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i>
+    </a>
+    <h3 class="fw-bold mb-0">
+        <i class="bi bi-credit-card me-2 text-primary"></i>Nuevo método de pago
+    </h3>
+</div>
+
+<div class="card" style="max-width:620px;">
+    <div class="card-body" style="padding:var(--sp-6)!important;">
+        <form asp-action="Create" method="post">
+            @Html.AntiForgeryToken()
+
+            <div class="mb-3">
+                <label asp-for="Nombre" class="form-label fw-semibold"></label>
+                <input asp-for="Nombre" class="form-control" placeholder="Ej: Visa Crédito, Mercado Pago" />
+                <span asp-validation-for="Nombre" class="text-danger small"></span>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col">
+                    <label asp-for="Tipo" class="form-label fw-semibold"></label>
+                    <select asp-for="Tipo" class="form-select"
+                            asp-items="Html.GetEnumSelectList<TipoMetodoPago>()"></select>
+                </div>
+                <div class="col">
+                    <label asp-for="Banco" class="form-label fw-semibold"></label>
+                    <input asp-for="Banco" class="form-control" placeholder="Ej: Santander (opcional)" />
+                </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col">
+                    <label asp-for="Cuotas" class="form-label fw-semibold"></label>
+                    <input asp-for="Cuotas" class="form-control" type="number" min="1" max="24" value="1" />
+                    <div class="form-text">Máximo de cuotas disponibles</div>
+                </div>
+                <div class="col">
+                    <label asp-for="RecargoPorc" class="form-label fw-semibold"></label>
+                    <div class="input-group">
+                        <input asp-for="RecargoPorc" class="form-control" type="number"
+                               step="0.01" min="0" max="99.99" value="0" />
+                        <span class="input-group-text">%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Descripcion" class="form-label fw-semibold"></label>
+                <input asp-for="Descripcion" class="form-control"
+                       placeholder="Texto descriptivo opcional" />
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="TipoMoneda" class="form-label fw-semibold"></label>
+                <select asp-for="TipoMoneda" class="form-select">
+                    <option value="ARS">ARS — Pesos argentinos</option>
+                    <option value="USD_CaraGrande">USD Cara grande — Dólar blue billete</option>
+                    <option value="USD_CaraChica">USD Cara chica — Dólar blue +5%</option>
+                    <option value="USD_Tarjeta">USD Tarjeta — Dólar tarjeta</option>
+                    <option value="USDT">USDT — Tether (equivalente blue)</option>
+                </select>
+                <div class="form-text">Define cómo cotiza la API el precio de este método. ARS convierte USD × blue. USD muestra el precio en dólares. USDT muestra el precio en Tether.</div>
+                <span asp-validation-for="TipoMoneda" class="text-danger small"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="LogoUrl" class="form-label fw-semibold"></label>
+                <input asp-for="LogoUrl" class="form-control" type="url"
+                       placeholder="https://..." />
+                <div class="form-text">URL del logo del medio de pago (opcional)</div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Orden" class="form-label fw-semibold"></label>
+                <input asp-for="Orden" class="form-control" type="number" min="0" value="0" style="max-width:100px;" />
+            </div>
+
+            <div class="form-check mb-4">
+                <input asp-for="Activo" class="form-check-input" type="checkbox" checked />
+                <label asp-for="Activo" class="form-check-label">Activo</label>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg me-1"></i>Crear método
+                </button>
+                <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>

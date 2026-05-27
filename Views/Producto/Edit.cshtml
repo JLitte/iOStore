@@ -1,0 +1,281 @@
+@model iOStore.Models.Producto
+@{
+    ViewData["Title"] = "Editar Producto";
+}
+
+<div class="row justify-content-center" style="padding-top:var(--sp-2);">
+    <div class="col-lg-8">
+
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <a asp-action="Index" class="btn btn-ghost btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Volver
+            </a>
+            <h2 style="font-size:var(--text-lg);font-weight:var(--weight-bold);letter-spacing:-.02em;margin:0;">
+                Editar: @Model.Modelo
+            </h2>
+        </div>
+
+        <div class="card">
+            <div class="card-body" style="padding:var(--sp-8)!important;">
+                <form asp-action="Edit" method="post" enctype="multipart/form-data">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="Id" />
+                    <input type="hidden" asp-for="FechaCreacion" />
+                    <input type="hidden" asp-for="Activo" />
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 mb-4"
+                         style="font-size:var(--text-xs);"></div>
+
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label asp-for="TipoProducto" class="form-label">Tipo</label>
+                            <input asp-for="TipoProducto" class="form-control" />
+                            <span asp-validation-for="TipoProducto" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-8">
+                            <label asp-for="Modelo" class="form-label">Modelo</label>
+                            <input asp-for="Modelo" class="form-control" />
+                            <span asp-validation-for="Modelo" class="text-danger small"></span>
+                        </div>
+
+                        <!-- Categorías -->
+                        <div class="col-12">
+                            <label class="form-label">
+                                Categorías <span style="font-size:var(--text-xs);color:var(--text-muted);">(Ctrl+clic para múltiple)</span>
+                            </label>
+                            <select name="categoriasSeleccionadas" asp-items="ViewBag.Categorias"
+                                    class="form-select" multiple size="5">
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label asp-for="Almacenamiento" class="form-label">Almacenamiento</label>
+                            <input asp-for="Almacenamiento" class="form-control" />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Bateria" class="form-label">Batería</label>
+                            <input asp-for="Bateria" class="form-control" />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Garantia" class="form-label">Garantía</label>
+                            <input asp-for="Garantia" class="form-control" />
+                        </div>
+
+                        <div class="col-12">
+                            <label asp-for="Procesador" class="form-label">Procesador</label>
+                            <input asp-for="Procesador" class="form-control" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="Precio" class="form-label">Precio</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input asp-for="Precio" class="form-control" />
+                            </div>
+                            <span asp-validation-for="Precio" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Stock" class="form-label">Stock</label>
+                            <input asp-for="Stock" class="form-control" type="number" min="0" />
+                            <span asp-validation-for="Stock" class="text-danger small"></span>
+                        </div>
+
+                        <div class="col-12">
+                            <label asp-for="Descripcion" class="form-label">Descripción</label>
+                            <textarea asp-for="Descripcion" class="form-control" rows="3"></textarea>
+                        </div>
+
+                        <!-- Imagen principal (URL) -->
+                        <div class="col-12">
+                            <label asp-for="ImagenUrl" class="form-label">URL imagen principal</label>
+                            @if (!string.IsNullOrEmpty(Model.ImagenUrl))
+                            {
+                                <div class="mb-2">
+                                    <img src="@Model.ImagenUrl" alt="Imagen actual"
+                                         class="rounded"
+                                         style="max-height:120px;object-fit:cover;" />
+                                    <div style="font-size:var(--text-xs);color:var(--text-muted);margin-top:4px;">
+                                        Imagen actual
+                                    </div>
+                                </div>
+                            }
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
+                                <input asp-for="ImagenUrl" class="form-control"
+                                       placeholder="https://ejemplo.com/imagen.jpg"
+                                       id="imagenUrlInput"
+                                       oninput="previewUrl(this.value)" />
+                            </div>
+                            <div style="font-size:var(--text-xs);color:var(--text-muted);margin-top:4px;">
+                                <i class="bi bi-info-circle me-1"></i>Imagen principal usada en listados y como fallback.
+                            </div>
+                            <div class="mt-2" id="previewContainer" style="display:none;">
+                                <img id="imagenPreview" src="" alt="Preview"
+                                     class="rounded"
+                                     style="max-height:180px;max-width:320px;object-fit:cover;" />
+                            </div>
+                        </div>
+
+                        <!-- Galería de imágenes adicionales -->
+                        <div class="col-12">
+                            <label class="form-label">
+                                Galería de imágenes
+                                <span style="font-size:var(--text-xs);color:var(--text-muted);font-weight:400;">
+                                    — aparecen en el carrusel del detalle
+                                </span>
+                            </label>
+
+                            <div id="galeriaItems">
+                                @if (Model.Imagenes.Any())
+                                {
+                                    @foreach (var img in Model.Imagenes.OrderBy(i => i.Orden))
+                                    {
+                                        <div class="galeria-item d-flex align-items-center gap-2 mb-2" style="animation:fadeIn .2s ease;">
+                                            <div class="galeria-thumb-preview">
+                                                <img src="@img.Url" alt="" onerror="this.style.display='none'" />
+                                            </div>
+                                            <input type="text" name="galeriaUrls"
+                                                   value="@img.Url"
+                                                   class="form-control galeria-url-input"
+                                                   placeholder="https://ejemplo.com/imagen.jpg"
+                                                   oninput="galeriaUpdatePreview(this)" />
+                                            <button type="button" class="btn-galeria-remove"
+                                                    onclick="galeriaRemoveItem(this)"
+                                                    title="Eliminar imagen">
+                                                <i class="bi bi-x-lg"></i>
+                                            </button>
+                                        </div>
+                                    }
+                                }
+                            </div>
+
+                            <button type="button" id="btnAddGaleria" class="btn-galeria-add mt-1">
+                                <i class="bi bi-plus-lg me-1"></i>Agregar imagen
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Promoción destacada en catálogo -->
+                    <hr style="margin:var(--sp-6) 0;border-color:var(--border-light);" />
+                    <div class="mb-3">
+                        <label asp-for="PromocionMetodoPagoId" class="form-label" style="font-weight:600;">
+                            Promoción destacada en catálogo
+                            <span style="font-size:var(--text-xs);color:var(--text-muted);font-weight:400;"> — opcional</span>
+                        </label>
+                        <select asp-for="PromocionMetodoPagoId"
+                                asp-items="ViewBag.MetodosPagoActivos"
+                                class="form-select"
+                                id="selectPromocion">
+                            <option value="">— Sin promoción —</option>
+                        </select>
+                        <div style="font-size:var(--text-xs);color:var(--text-muted);margin-top:4px;">
+                            El texto calculado en tiempo real aparece en la tarjeta del catálogo.
+                        </div>
+                        <div id="promoPreview" style="display:none;margin-top:8px;padding:8px 12px;background:#fff3cd;border:1px solid #ffc107;border-radius:8px;font-size:13px;color:#856404;">
+                            <i class="bi bi-tag-fill me-1"></i><span id="promoTexto"></span>
+                        </div>
+                    </div>
+
+                    <hr style="margin:var(--sp-6) 0;border-color:var(--border-light);" />
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save me-2"></i>Guardar cambios
+                        </button>
+                        <a asp-action="Index" class="btn btn-ghost">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+    <script>
+        // ── Imagen principal preview ──────────────────────────────────
+        function previewUrl(url) {
+            const preview = document.getElementById('imagenPreview');
+            const container = document.getElementById('previewContainer');
+            if (url && url.startsWith('http')) {
+                preview.src = url;
+                preview.onload = () => container.style.display = 'block';
+                preview.onerror = () => container.style.display = 'none';
+            } else {
+                container.style.display = 'none';
+            }
+        }
+
+        // ── Galería: actualizar miniatura al escribir ─────────────────
+        function galeriaUpdatePreview(input) {
+            const thumb = input.closest('.galeria-item').querySelector('.galeria-thumb-preview img');
+            if (!thumb) return;
+            const url = input.value.trim();
+            if (url) {
+                thumb.src = url;
+                thumb.style.display = '';
+                thumb.onerror = () => { thumb.style.display = 'none'; };
+            } else {
+                thumb.style.display = 'none';
+            }
+        }
+
+        // ── Galería: eliminar fila ────────────────────────────────────
+        function galeriaRemoveItem(btn) {
+            const item = btn.closest('.galeria-item');
+            item.style.transition = 'opacity 0.18s ease, transform 0.18s ease';
+            item.style.opacity = '0';
+            item.style.transform = 'translateX(10px)';
+            setTimeout(() => item.remove(), 180);
+        }
+
+        // ── Promoción: preview en tiempo real ────────────────────────
+        const selectPromocion = document.getElementById('selectPromocion');
+        const inputPrecio     = document.querySelector('input[name="Precio"]');
+
+        async function actualizarPreviewPromocion() {
+            const metodoPagoId = selectPromocion.value;
+            const precioUSD    = parseFloat(inputPrecio?.value || '0');
+            const preview      = document.getElementById('promoPreview');
+            const textoEl      = document.getElementById('promoTexto');
+
+            if (!metodoPagoId || !precioUSD) { preview.style.display = 'none'; return; }
+
+            try {
+                const r = await fetch(`/Producto/PreviewPromocion?precioUSD=${precioUSD}&metodoPagoId=${metodoPagoId}`);
+                if (!r.ok) { preview.style.display = 'none'; return; }
+                const data = await r.json();
+                textoEl.textContent = data.texto;
+                preview.style.display = 'block';
+            } catch { preview.style.display = 'none'; }
+        }
+
+        selectPromocion.addEventListener('change', actualizarPreviewPromocion);
+        inputPrecio?.addEventListener('input', actualizarPreviewPromocion);
+
+        // Mostrar preview si ya hay una promoción seleccionada al cargar
+        if (selectPromocion.value) actualizarPreviewPromocion();
+
+        // ── Galería: agregar nueva fila ───────────────────────────────
+        document.getElementById('btnAddGaleria').addEventListener('click', function () {
+            const container = document.getElementById('galeriaItems');
+            const div = document.createElement('div');
+            div.className = 'galeria-item d-flex align-items-center gap-2 mb-2';
+            div.style.animation = 'fadeIn .2s ease';
+            div.innerHTML = `
+                <div class="galeria-thumb-preview">
+                    <img src="" alt="" style="display:none;" onerror="this.style.display='none'" />
+                </div>
+                <input type="text" name="galeriaUrls"
+                       class="form-control galeria-url-input"
+                       placeholder="https://ejemplo.com/imagen.jpg"
+                       oninput="galeriaUpdatePreview(this)" />
+                <button type="button" class="btn-galeria-remove"
+                        onclick="galeriaRemoveItem(this)"
+                        title="Eliminar imagen">
+                    <i class="bi bi-x-lg"></i>
+                </button>`;
+            container.appendChild(div);
+            div.querySelector('input').focus();
+        });
+    </script>
+}

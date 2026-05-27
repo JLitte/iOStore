@@ -1,0 +1,296 @@
+@model List<iOStore.Models.Producto>
+@{
+    ViewData["Title"] = "Catálogo";
+    int totalPages = ViewBag.TotalPages;
+    int pagina     = ViewBag.Pagina;
+    string? buscar = ViewBag.Buscar;
+    string? orden  = ViewBag.Orden;
+    int? catId     = ViewBag.CategoriaSeleccionada;
+}
+
+<!-- Breadcrumb -->
+<nav class="breadcrumb-apple mb-3">
+    <a asp-controller="Home" asp-action="Index">Inicio</a>
+    <span class="sep">›</span>
+    <span>@(string.IsNullOrEmpty(buscar) ? "Catálogo" : $"Búsqueda: {buscar}")</span>
+</nav>
+
+<!-- Barra top: título + toggle filtros mobile + sort -->
+<div class="catalog-topbar">
+    <div>
+        <div class="catalog-topbar-title">
+            @(string.IsNullOrEmpty(buscar) ? "Catálogo" : $"\"{buscar}\"")
+        </div>
+        <div class="catalog-topbar-meta">@ViewBag.Total producto(s)</div>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        <!-- Filtros toggle (mobile) -->
+        <button class="btn-filter-toggle" id="btnFilterToggle" type="button">
+            <i class="bi bi-sliders me-1"></i>Filtros
+        </button>
+
+        <!-- Sort -->
+        <form id="sortForm" asp-action="Catalogo" method="get">
+            <input type="hidden" name="buscar" value="@buscar" />
+            <input type="hidden" name="categoriaId" value="@catId" />
+            <select name="orden" id="sortSelect" class="sort-select">
+                <option value=""          selected="@(orden == null)">Más recientes</option>
+                <option value="precio_asc"  selected="@(orden == "precio_asc")">Precio: menor a mayor</option>
+                <option value="precio_desc" selected="@(orden == "precio_desc")">Precio: mayor a menor</option>
+                <option value="nombre"      selected="@(orden == "nombre")">Nombre A–Z</option>
+            </select>
+        </form>
+    </div>
+</div>
+
+<!-- Layout 2 columnas: sidebar + grilla -->
+<div class="catalog-layout">
+
+    <!-- ── Sidebar filtros ──────────────────────────────────────────────── -->
+    <aside class="filter-sidebar">
+        <div class="filter-sidebar-title">Filtros</div>
+
+        <!-- Búsqueda -->
+        <div class="filter-section">
+            <form asp-action="Catalogo" method="get" id="filterForm">
+                <input type="hidden" name="orden" value="@orden" />
+                <div class="search-input-wrap">
+                    <i class="bi bi-search"></i>
+                    <input type="text" name="buscar" value="@buscar"
+                           placeholder="Buscar productos..."
+                           id="buscarInput" autocomplete="off" />
+                </div>
+
+                <!-- Categorías -->
+                @if (ViewBag.Categorias != null)
+                {
+                    <div class="filter-section mt-3">
+                        <button type="button" class="filter-section-label"
+                                data-accordion="filtro-cats"
+                                aria-expanded="true">
+                            Categoría <i class="bi bi-chevron-down"></i>
+                        </button>
+                        <ul class="filter-check-list" id="filtro-cats">
+                            <li class="filter-check-item @(catId == null ? "active" : "")">
+                                <a asp-action="Catalogo" asp-route-buscar="@buscar"
+                                   asp-route-orden="@orden">
+                                    Todas
+                                </a>
+                            </li>
+                            @foreach (var cat in (IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>)ViewBag.Categorias)
+                            {
+                                var isActive = catId.HasValue && catId.ToString() == cat.Value;
+                                <li class="filter-check-item @(isActive ? "active" : "")">
+                                    <a asp-action="Catalogo"
+                                       asp-route-categoriaId="@cat.Value"
+                                       asp-route-buscar="@buscar"
+                                       asp-route-orden="@orden">
+                                        @cat.Text
+                                    </a>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                }
+
+                <button type="submit" class="filter-apply-btn">
+                    Aplicar
+                </button>
+
+                @if (!string.IsNullOrEmpty(buscar) || catId.HasValue)
+                {
+                    <a asp-action="Catalogo" class="btn-apple-ghost w-100 mt-1"
+                       style="font-size:13px;justify-content:center;">
+                        <i class="bi bi-x me-1"></i>Limpiar filtros
+                    </a>
+                }
+            </form>
+        </div>
+    </aside>
+
+    <!-- ── Grilla de productos ───────────────────────────────────────────── -->
+    <div>
+        @if (!Model.Any())
+        {
+            <div style="text-align:center;padding:80px 24px;max-width:400px;margin:0 auto;">
+                <i class="bi bi-search" style="font-size:52px;color:var(--apple-border);display:block;margin-bottom:20px;"></i>
+                <div class="section-title" style="font-size:22px;">Sin resultados</div>
+                <p style="color:var(--apple-muted);font-size:15px;margin-bottom:24px;">
+                    No se encontraron productos con los filtros aplicados.
+                </p>
+                <a asp-action="Catalogo" class="btn-apple-primary">Ver todo el catálogo</a>
+            </div>
+        }
+        else
+        {
+            <div class="products-apple-grid">
+                @foreach (var p in Model)
+                {
+                    <div class="product-card-apple fade-in-up">
+                        <div class="card-img-wrap">
+                            @if ((DateTime.Now - p.FechaCreacion).TotalDays <= 30)
+                            {
+                                <span class="card-badge-new">Nuevo</span>
+                            }
+                            @if (p.Stock > 0 && p.Stock <= 3)
+                            {
+                                <span class="card-badge-stock">¡Últimas @p.Stock!</span>
+                            }
+                            else if (p.Stock == 0)
+                            {
+                                <span class="card-badge-no-stock">Sin stock</span>
+                            }
+                            <a asp-action="Details" asp-route-id="@p.Id">
+                                <img src="@(p.ImagenUrl ?? "/images/no-image.png")"
+                                     alt="@p.Modelo" loading="lazy" />
+                            </a>
+                        </div>
+                        <div class="card-body-apple">
+                            <div class="card-type-label">@p.TipoProducto</div>
+                            <a asp-action="Details" asp-route-id="@p.Id"
+                               style="text-decoration:none;">
+                                <div class="card-product-name">@p.Modelo</div>
+                            </a>
+                            @if (!string.IsNullOrEmpty(p.Almacenamiento))
+                            {
+                                <div class="card-product-desc">
+                                    <i class="bi bi-device-ssd me-1"></i>@p.Almacenamiento
+                                    @if (!string.IsNullOrEmpty(p.Procesador))
+                                    {
+                                        <span> · @p.Procesador</span>
+                                    }
+                                </div>
+                            }
+                            <div class="card-price-row">
+                                <div class="card-price">$@p.Precio.ToString("N0")</div>
+                                @{
+                                    var promoTextos = ViewBag.PromocionTextos as Dictionary<int, string>;
+                                    var promoTexto  = promoTextos != null && promoTextos.TryGetValue(p.Id, out var t) ? t : null;
+                                }
+                                @if (promoTexto != null)
+                                {
+                                    <div class="card-cuotas" style="color:#856404;background:#fff3cd;border-radius:6px;padding:2px 8px;">
+                                        <i class="bi bi-tag-fill me-1"></i>@promoTexto
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                        <div class="card-footer-apple">
+                            @if (User.Identity?.IsAuthenticated == true && p.Stock > 0)
+                            {
+                                <button class="btn-card-buy btn-agregar-carrito"
+                                        data-id="@p.Id" data-nombre="@p.Modelo"
+                                        type="button">
+                                    <i class="bi bi-bag-plus"></i>Agregar
+                                </button>
+                            }
+                            else if (p.Stock == 0)
+                            {
+                                <button class="btn-card-buy" disabled style="opacity:0.5;cursor:not-allowed;">
+                                    Sin stock
+                                </button>
+                            }
+                            else
+                            {
+                                <a asp-controller="Account" asp-action="Login" class="btn-card-buy">
+                                    <i class="bi bi-box-arrow-in-right"></i>Ingresar
+                                </a>
+                            }
+                            <a asp-action="Details" asp-route-id="@p.Id" class="btn-card-details">
+                                Ver ›
+                            </a>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <!-- Paginación -->
+            @if (totalPages > 1)
+            {
+                <div class="pagination-apple">
+                    <a class="page-btn @(pagina == 1 ? "disabled" : "")"
+                       asp-action="Catalogo"
+                       asp-route-pagina="@(pagina - 1)"
+                       asp-route-buscar="@buscar"
+                       asp-route-categoriaId="@catId"
+                       asp-route-orden="@orden">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                    @for (int p2 = Math.Max(1, pagina - 2); p2 <= Math.Min(totalPages, pagina + 2); p2++)
+                    {
+                        <a class="page-btn @(p2 == pagina ? "active" : "")"
+                           asp-action="Catalogo"
+                           asp-route-pagina="@p2"
+                           asp-route-buscar="@buscar"
+                           asp-route-categoriaId="@catId"
+                           asp-route-orden="@orden">
+                            @p2
+                        </a>
+                    }
+                    <a class="page-btn @(pagina == totalPages ? "disabled" : "")"
+                       asp-action="Catalogo"
+                       asp-route-pagina="@(pagina + 1)"
+                       asp-route-buscar="@buscar"
+                       asp-route-categoriaId="@catId"
+                       asp-route-orden="@orden">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@Html.AntiForgeryToken()
+
+@section Scripts {
+    <script>
+        // Agregar al carrito desde el catálogo
+        document.querySelectorAll('.btn-agregar-carrito').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const id     = this.dataset.id;
+                const nombre = this.dataset.nombre;
+                const self   = this;
+                self.disabled = true;
+                self.classList.add('btn-loading');
+
+                fetch('/Carrito/AgregarAlCarrito', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+                    },
+                    body: `productoId=${id}&cantidad=1`
+                })
+                .then(r => r.json())
+                .then(d => {
+                    self.classList.remove('btn-loading');
+                    if (d.success) {
+                        const badge = document.getElementById('carritoCount');
+                        if (badge) {
+                            badge.textContent = d.totalItems;
+                            badge.style.display = d.totalItems > 0 ? 'inline-flex' : 'none';
+                        }
+                        const orig = self.innerHTML;
+                        self.innerHTML = '<i class="bi bi-check2"></i>¡Listo!';
+                        self.style.background = 'var(--success)';
+                        window.toast?.success(`${nombre} agregado al carrito.`);
+                        setTimeout(() => {
+                            self.innerHTML = '<i class="bi bi-bag-plus"></i>Agregar';
+                            self.style.background = '';
+                            self.disabled = false;
+                        }, 1800);
+                    } else {
+                        window.toast?.error(d.message || 'Error al agregar.');
+                        self.disabled = false;
+                    }
+                })
+                .catch(() => {
+                    self.classList.remove('btn-loading');
+                    window.toast?.error('Error de conexión.');
+                    self.disabled = false;
+                });
+            });
+        });
+    </script>
+}

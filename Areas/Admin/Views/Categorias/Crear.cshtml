@@ -1,0 +1,76 @@
+﻿@model iOStore.Models.Categoria
+@{
+    bool esEditar = Model.Id > 0;
+    ViewData["Title"] = esEditar ? "Editar Categoría" : "Nueva Categoría";
+    Layout = "/Views/Shared/_Layout.Admin.cshtml";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-@(esEditar ? "pencil" : "plus-circle") me-2"></i>
+                @ViewData["Title"]
+            </div>
+            <div class="card-body" style="padding:var(--sp-6)!important;">
+                <form asp-action="@(esEditar ? "Editar" : "Crear")" method="post">
+                    @Html.AntiForgeryToken()
+                    @if (esEditar)
+                    {
+                        <input type="hidden" asp-for="Id" />
+                    }
+
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="Nombre" class="form-label fw-semibold"></label>
+                        <input asp-for="Nombre" class="form-control" autofocus />
+                        <span asp-validation-for="Nombre" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Descripcion" class="form-label fw-semibold"></label>
+                        <textarea asp-for="Descripcion" class="form-control" rows="2"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Icono" class="form-label fw-semibold">
+                            Ícono Bootstrap Icons
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text" id="iconPreview">
+                                <i class="@(Model.Icono ?? "bi-tag") fs-5" id="iconEl"></i>
+                            </span>
+                            <input asp-for="Icono" class="form-control" placeholder="bi-tag"
+                                   oninput="document.getElementById('iconEl').className = this.value + ' fs-5'" />
+                        </div>
+                        <div class="form-text">
+                            Ejemplos: <code>bi-phone</code>, <code>bi-tablet</code>, <code>bi-laptop</code>,
+                            <code>bi-smartwatch</code>, <code>bi-headphones</code>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="form-check form-switch">
+                            <input asp-for="Activa" class="form-check-input" role="switch" />
+                            <label asp-for="Activa" class="form-check-label fw-semibold">Activa</label>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check2 me-2"></i>@(esEditar ? "Guardar cambios" : "Crear categoría")
+                        </button>
+                        <a asp-action="Index" class="btn btn-ghost">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

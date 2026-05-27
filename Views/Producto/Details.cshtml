@@ -1,0 +1,381 @@
+@model iOStore.Models.Producto
+@{
+    ViewData["Title"] = Model.Modelo;
+}
+
+<!-- Breadcrumb -->
+<nav class="breadcrumb-apple mb-4">
+    <a asp-controller="Home" asp-action="Index">Inicio</a>
+    <span class="sep">›</span>
+    @if (Model.ProductoCategorias.Any())
+    {
+        <a asp-controller="Producto" asp-action="Catalogo"
+           asp-route-buscar="@Model.TipoProducto">
+            @(Model.ProductoCategorias.First().Categoria?.Nombre ?? Model.TipoProducto)
+        </a>
+    }
+    else
+    {
+        <a asp-controller="Producto" asp-action="Catalogo">Catálogo</a>
+    }
+    <span class="sep">›</span>
+    <span>@Model.Modelo</span>
+</nav>
+
+<!-- Layout 2 columnas -->
+<div class="product-detail-layout">
+
+    <!-- ── Galería ──────────────────────────────────────────────────────── -->
+    @{
+        // Construir lista de imágenes: galería guardada + fallback a ImagenUrl
+        var galeriaImages = Model.Imagenes.OrderBy(i => i.Orden).Select(i => i.Url).ToList();
+        if (!galeriaImages.Any() && !string.IsNullOrEmpty(Model.ImagenUrl))
+            galeriaImages.Add(Model.ImagenUrl!);
+        if (!galeriaImages.Any())
+            galeriaImages.Add("/images/no-image.png");
+
+        bool multiImg = galeriaImages.Count > 1;
+    }
+    <div class="product-gallery">
+        <div class="gallery-main-wrap">
+            @if (multiImg)
+            {
+                <button class="gallery-arrow prev" id="galleryPrev" type="button" aria-label="Anterior">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+            }
+            <img id="galleryMain"
+                 src="@galeriaImages[0]"
+                 alt="@Model.Modelo" />
+            @if (multiImg)
+            {
+                <button class="gallery-arrow next" id="galleryNext" type="button" aria-label="Siguiente">
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+            }
+        </div>
+
+        @if (multiImg)
+        {
+            <div class="gallery-dots" id="galleryDots">
+                @for (int di = 0; di < galeriaImages.Count; di++)
+                {
+                    <button class="gallery-dot @(di == 0 ? "active" : "")"
+                            data-idx="@di" type="button" aria-label="Imagen @(di+1)"></button>
+                }
+            </div>
+        }
+
+        <!-- Miniaturas -->
+        <div class="gallery-thumbs">
+            @for (int ti = 0; ti < galeriaImages.Count; ti++)
+            {
+                <div class="gallery-thumb @(ti == 0 ? "active" : "")"
+                     data-idx="@ti"
+                     data-src="@galeriaImages[ti]"
+                     data-alt="@Model.Modelo @(ti > 0 ? $"— imagen {ti+1}" : "")">
+                    <img src="@galeriaImages[ti]"
+                         alt="@Model.Modelo @(ti > 0 ? $"— imagen {ti+1}" : "")" />
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- ── Panel info ────────────────────────────────────────────────────── -->
+    <div class="product-info-panel">
+
+        <!-- Categorías badges -->
+        @if (Model.ProductoCategorias.Any())
+        {
+            <div class="d-flex flex-wrap gap-2 mb-3">
+                @foreach (var pc in Model.ProductoCategorias)
+                {
+                    <a asp-controller="Producto" asp-action="Catalogo"
+                       asp-route-buscar="@pc.Categoria?.Nombre"
+                       style="display:inline-flex;align-items:center;gap:4px;
+                              background:var(--apple-bg);color:var(--apple-muted);
+                              font-size:12px;font-weight:600;padding:4px 10px;
+                              border-radius:980px;text-decoration:none;
+                              transition:color .15s;">
+                        <i class="@(pc.Categoria?.Icono ?? "bi-tag")"></i>
+                        @pc.Categoria?.Nombre
+                    </a>
+                }
+            </div>
+        }
+
+        <!-- Nombre -->
+        <h1 class="product-detail-name">@Model.Modelo</h1>
+
+        <!-- Precio -->
+        <div class="product-detail-price">$@Model.Precio.ToString("N0")</div>
+        @if (ViewBag.PromocionTexto != null)
+        {
+            <div class="product-detail-cuotas">
+                <i class="bi bi-credit-card-2-front"></i>
+                @ViewBag.PromocionTexto
+            </div>
+        }
+
+        <!-- Stock -->
+        <div class="mb-3">
+            @if (Model.Stock == 0)
+            {
+                <span class="stock-badge-out">
+                    <i class="bi bi-x-circle"></i>Sin stock
+                </span>
+            }
+            else if (Model.Stock <= 3)
+            {
+                <span class="stock-badge-warn">
+                    <i class="bi bi-exclamation-triangle"></i>¡Últimas @Model.Stock unidades!
+                </span>
+            }
+            else if (Model.Stock <= 10)
+            {
+                <span class="stock-badge-warn">
+                    <i class="bi bi-boxes"></i>@Model.Stock disponibles
+                </span>
+            }
+            else
+            {
+                <span class="stock-badge-ok">
+                    <i class="bi bi-check-circle"></i>En stock
+                </span>
+            }
+        </div>
+
+        <!-- Selector almacenamiento (si aplica) -->
+        @if (!string.IsNullOrEmpty(Model.Almacenamiento))
+        {
+            <div class="selector-section">
+                <div class="selector-label">
+                    Almacenamiento: <span>@Model.Almacenamiento</span>
+                </div>
+                <div class="storage-options">
+                    <button class="storage-btn active" type="button">@Model.Almacenamiento</button>
+                </div>
+            </div>
+        }
+
+        <!-- Descripción corta -->
+        @if (!string.IsNullOrEmpty(Model.Descripcion))
+        {
+            <p class="product-description">@Model.Descripcion</p>
+        }
+
+        <!-- CTA -->
+        @if (User.Identity?.IsAuthenticated == true && Model.Stock > 0)
+        {
+            <div class="d-flex align-items-center gap-3 flex-wrap mb-2">
+                <div class="qty-stepper-apple">
+                    <button type="button" id="btnDec" class="qty-btn" aria-label="Disminuir">−</button>
+                    <input type="number" id="qtyInput" class="qty-input-apple no-spin"
+                           value="1" min="1" max="@Model.Stock" aria-label="Cantidad" />
+                    <button type="button" id="btnInc" class="qty-btn" aria-label="Aumentar">+</button>
+                </div>
+                <span style="font-size:13px;color:var(--apple-muted);">
+                    Máx. @Model.Stock und.
+                </span>
+            </div>
+            <button class="btn-buy-now" id="btnAgregar" data-id="@Model.Id" type="button">
+                <i class="bi bi-bag-plus"></i>Agregar al carrito
+            </button>
+        }
+        else if (!(User.Identity?.IsAuthenticated ?? false))
+        {
+            <a asp-controller="Account" asp-action="Login" class="btn-buy-now">
+                <i class="bi bi-box-arrow-in-right"></i>Iniciá sesión para comprar
+            </a>
+        }
+        else if (Model.Stock == 0)
+        {
+            <button class="btn-buy-now" disabled>
+                <i class="bi bi-x-circle"></i>Sin stock disponible
+            </button>
+        }
+
+        <!-- Acordeón specs técnicas -->
+        <div class="specs-accordion">
+            @if (!string.IsNullOrEmpty(Model.Procesador) || !string.IsNullOrEmpty(Model.Almacenamiento)
+                 || !string.IsNullOrEmpty(Model.Bateria) || !string.IsNullOrEmpty(Model.Garantia))
+            {
+                <div class="specs-accordion-item">
+                    <button class="specs-accordion-btn" type="button" aria-expanded="true">
+                        Especificaciones técnicas
+                        <i class="bi bi-chevron-down"></i>
+                    </button>
+                    <div class="specs-accordion-body open">
+                        <div class="specs-table">
+                            @if (!string.IsNullOrEmpty(Model.TipoProducto))
+                            {
+                                <div class="specs-row-item">
+                                    <span class="specs-key">Tipo</span>
+                                    <span class="specs-val">@Model.TipoProducto</span>
+                                </div>
+                            }
+                            @if (!string.IsNullOrEmpty(Model.Procesador))
+                            {
+                                <div class="specs-row-item">
+                                    <span class="specs-key">Procesador</span>
+                                    <span class="specs-val">@Model.Procesador</span>
+                                </div>
+                            }
+                            @if (!string.IsNullOrEmpty(Model.Almacenamiento))
+                            {
+                                <div class="specs-row-item">
+                                    <span class="specs-key">Almacenamiento</span>
+                                    <span class="specs-val">@Model.Almacenamiento</span>
+                                </div>
+                            }
+                            @if (!string.IsNullOrEmpty(Model.Bateria))
+                            {
+                                <div class="specs-row-item">
+                                    <span class="specs-key">Batería</span>
+                                    <span class="specs-val">@Model.Bateria</span>
+                                </div>
+                            }
+                            @if (!string.IsNullOrEmpty(Model.Garantia))
+                            {
+                                <div class="specs-row-item">
+                                    <span class="specs-key">Garantía</span>
+                                    <span class="specs-val">@Model.Garantia</span>
+                                </div>
+                            }
+                            <div class="specs-row-item">
+                                <span class="specs-key">Stock</span>
+                                <span class="specs-val">@Model.Stock unidades</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <div class="specs-accordion-item">
+                <button class="specs-accordion-btn" type="button" aria-expanded="false">
+                    Envío y entrega
+                    <i class="bi bi-chevron-down"></i>
+                </button>
+                <div class="specs-accordion-body">
+                    <p style="font-size:14px;color:var(--apple-muted);line-height:1.7;">
+                        <strong style="color:var(--apple-text);">Envío gratuito</strong> a todo el país.<br />
+                        Despacho en 24–48 hs hábiles. Seguimiento en tiempo real.<br />
+                        <strong style="color:var(--apple-text);">Retiro en tienda</strong> disponible.
+                    </p>
+                </div>
+            </div>
+
+            <div class="specs-accordion-item">
+                <button class="specs-accordion-btn" type="button" aria-expanded="false">
+                    Garantía y devoluciones
+                    <i class="bi bi-chevron-down"></i>
+                </button>
+                <div class="specs-accordion-body">
+                    <p style="font-size:14px;color:var(--apple-muted);line-height:1.7;">
+                        Garantía oficial Apple de <strong style="color:var(--apple-text);">1 año</strong> contra defectos de fabricación.<br />
+                        Podés devolver el producto en hasta <strong style="color:var(--apple-text);">30 días</strong> sin costo adicional.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@Html.AntiForgeryToken()
+
+@section Scripts {
+    <script>
+        // ── Carrusel galería ─────────────────────────────────────────
+        (function () {
+            const mainImg  = document.getElementById('galleryMain');
+            const thumbs   = Array.from(document.querySelectorAll('.gallery-thumb'));
+            const dots     = Array.from(document.querySelectorAll('.gallery-dot'));
+            const btnPrev  = document.getElementById('galleryPrev');
+            const btnNext  = document.getElementById('galleryNext');
+            let current    = 0;
+
+            if (!mainImg || thumbs.length < 2) return; // nada que hacer si hay ≤1 imagen
+
+            function goTo(idx) {
+                if (idx === current) return;
+                const targetSrc = thumbs[idx].dataset.src;
+                const targetAlt = thumbs[idx].dataset.alt;
+
+                // Fade out
+                mainImg.classList.add('fade-out');
+                setTimeout(() => {
+                    mainImg.src = targetSrc;
+                    mainImg.alt = targetAlt;
+                    mainImg.onload = () => mainImg.classList.remove('fade-out');
+                    mainImg.onerror = () => mainImg.classList.remove('fade-out');
+                }, 280);
+
+                // Actualizar activos
+                thumbs[current].classList.remove('active');
+                thumbs[idx].classList.add('active');
+                if (dots[current]) dots[current].classList.remove('active');
+                if (dots[idx])     dots[idx].classList.add('active');
+                current = idx;
+            }
+
+            // Clicks en miniaturas
+            thumbs.forEach((t, i) => t.addEventListener('click', () => goTo(i)));
+
+            // Clicks en dots
+            dots.forEach((d, i) => d.addEventListener('click', () => goTo(i)));
+
+            // Flechas
+            if (btnPrev) btnPrev.addEventListener('click', () =>
+                goTo((current - 1 + thumbs.length) % thumbs.length));
+            if (btnNext) btnNext.addEventListener('click', () =>
+                goTo((current + 1) % thumbs.length));
+
+            // Swipe touch básico
+            let touchStartX = 0;
+            mainImg.closest('.gallery-main-wrap').addEventListener('touchstart', e => {
+                touchStartX = e.changedTouches[0].clientX;
+            }, { passive: true });
+            mainImg.closest('.gallery-main-wrap').addEventListener('touchend', e => {
+                const dx = e.changedTouches[0].clientX - touchStartX;
+                if (Math.abs(dx) > 40)
+                    goTo(dx < 0
+                        ? (current + 1) % thumbs.length
+                        : (current - 1 + thumbs.length) % thumbs.length);
+            }, { passive: true });
+        })();
+
+        // ── Carrito ──────────────────────────────────────────────────
+        const btnDec     = document.getElementById('btnDec');
+        const btnInc     = document.getElementById('btnInc');
+        const qtyInput   = document.getElementById('qtyInput');
+        const btnAgregar = document.getElementById('btnAgregar');
+
+        if (btnDec) btnDec.addEventListener('click', () => {
+            const v = parseInt(qtyInput.value);
+            if (v > 1) qtyInput.value = v - 1;
+        });
+        if (btnInc) btnInc.addEventListener('click', () => {
+            const max  = parseInt(qtyInput.max);
+            const next = parseInt(qtyInput.value) + 1;
+            if (next <= max) qtyInput.value = next;
+            else window.toast?.warning(`Stock máximo: ${max}`);
+        });
+
+        if (btnAgregar) btnAgregar.addEventListener('click', function () {
+            const id  = this.dataset.id;
+            const qty = parseInt(qtyInput.value);
+            btnAgregar.disabled = true;
+            btnAgregar.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Agregando...';
+
+            agregarAlCarrito(id, qty, () => {
+                btnAgregar.innerHTML = '<i class="bi bi-check2 me-2"></i>¡Agregado!';
+                btnAgregar.style.background = 'var(--success)';
+                setTimeout(() => {
+                    btnAgregar.innerHTML = '<i class="bi bi-bag-plus me-2"></i>Agregar al carrito';
+                    btnAgregar.style.background = '';
+                    btnAgregar.disabled = false;
+                }, 2200);
+            });
+        });
+    </script>
+}

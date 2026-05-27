@@ -1,0 +1,820 @@
+@using iOStore.Areas.Admin.Controllers
+@using iOStore.Helpers
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+    Layout = "/Views/Shared/_Layout.Admin.cshtml";
+}
+
+<!-- Page header -->
+<div class="admin-page-header d-flex justify-content-between align-items-start flex-wrap gap-3">
+    <div>
+        <div class="admin-page-title">Dashboard</div>
+        <div class="admin-page-sub">
+            @Model.Desde.ToString("dd/MM/yyyy") — @Model.Hasta.ToString("dd/MM/yyyy")
+        </div>
+    </div>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+        <form asp-action="Filtrar" method="post" class="d-flex gap-2 align-items-center flex-wrap">
+            @Html.AntiForgeryToken()
+            <input type="date" name="desde" value="@Model.Desde.ToString("yyyy-MM-dd")"
+                   class="form-control form-control-sm" style="width:140px;" />
+            <span class="text-muted" style="font-size:var(--text-xs);">→</span>
+            <input type="date" name="hasta" value="@Model.Hasta.ToString("yyyy-MM-dd")"
+                   class="form-control form-control-sm" style="width:140px;" />
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="bi bi-funnel me-1"></i>Filtrar
+            </button>
+        </form>
+        <div class="dropdown">
+            <button class="btn btn-outline-success btn-sm dropdown-toggle" type="button"
+                    data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-download me-1"></i>Exportar a Excel
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="@Url.Action("ExportarExcel", new { rango = "hoy" })">Hoy</a></li>
+                <li><a class="dropdown-item" href="@Url.Action("ExportarExcel", new { rango = "semana" })">Esta semana</a></li>
+                <li><a class="dropdown-item" href="@Url.Action("ExportarExcel", new { rango = "mes" })">Este mes</a></li>
+                <li><a class="dropdown-item" href="@Url.Action("ExportarExcel", new { rango = "ano" })">Este año</a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- ── KPI Cards — Fila 1: métricas generales ──────────────────────── -->
+<div class="row g-3 mb-3">
+    <div class="col-sm-6 col-xl-3">
+        <div class="metric-card">
+            <div class="metric-icon-box green"><i class="bi bi-bag-check"></i></div>
+            <div>
+                <div class="metric-value">@Model.TotalPedidosPeriodo</div>
+                <div class="metric-label">Pedidos en el período</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="metric-card">
+            <div class="metric-icon-box orange"><i class="bi bi-box-seam"></i></div>
+            <div>
+                <div class="metric-value">@Model.ProductosActivos</div>
+                <div class="metric-label">Productos activos</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="metric-card">
+            <div class="metric-icon-box purple"><i class="bi bi-people"></i></div>
+            <div>
+                <div class="metric-value">@Model.TotalClientes</div>
+                <div class="metric-label">Clientes registrados</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="metric-card">
+            <div class="metric-icon-box orange"><i class="bi bi-hourglass-split"></i></div>
+            <div>
+                <div class="metric-value @(Model.PedidosPendientes > 0 ? "text-warning" : "")">@Model.PedidosPendientes</div>
+                <div class="metric-label">Pedidos pendientes</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── KPI Cards — Fila 2: ventas por divisa (período seleccionado) ── -->
+<div style="font-size:var(--text-xs);font-weight:var(--weight-semibold);color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:var(--sp-2);">
+    Ventas entregadas — período seleccionado
+</div>
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="metric-card">
+            <div class="metric-icon-box blue"><i class="bi bi-cash-stack"></i></div>
+            <div>
+                <div class="metric-value" style="font-size:var(--text-xl);">$@Model.VentasARSPeriodo.ToString("N0")</div>
+                <div class="metric-label">Ventas ARS</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="metric-card">
+            <div class="metric-icon-box green"><i class="bi bi-currency-dollar"></i></div>
+            <div>
+                <div class="metric-value" style="font-size:var(--text-xl);">U$S @Model.VentasUSDCGPeriodo.ToString("N2")</div>
+                <div class="metric-label">USD Cara grande</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="metric-card">
+            <div class="metric-icon-box orange"><i class="bi bi-currency-dollar"></i></div>
+            <div>
+                <div class="metric-value" style="font-size:var(--text-xl);">U$S @Model.VentasUSDCCPeriodo.ToString("N2")</div>
+                <div class="metric-label">USD Cara chica</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="metric-card">
+            <div class="metric-icon-box" style="background:rgba(91,33,182,.12);color:#5B21B6;"><i class="bi bi-credit-card"></i></div>
+            <div>
+                <div class="metric-value" style="font-size:var(--text-xl);">$@Model.VentasUSDTPeriodo.ToString("N0")</div>
+                <div class="metric-label">USD Tarjeta (en ARS)</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Charts ─────────────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-graph-up me-2 text-primary"></i>Tendencia de ventas</div>
+            <div class="card-body"><canvas id="ventasDiaChart" height="110"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-bar-chart-fill me-2 text-success"></i>Top 5 productos</div>
+            <div class="card-body"><canvas id="topProductosChart" height="200"></canvas></div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Top productos vendidos (período) ───────────────────────────── -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-trophy me-2 text-warning"></i>Top productos vendidos</span>
+                <span style="font-size:var(--text-xs);color:var(--text-muted);">período seleccionado</span>
+            </div>
+            <div class="card-body" style="padding:0!important;">
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead>
+                            <tr>
+                                <th style="width:40px;">#</th>
+                                <th>Producto</th>
+                                <th>Modelo</th>
+                                <th class="text-end">Cant.</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{ int i = 1; }
+                            @foreach (var p in Model.ProductosVendidos)
+                            {
+                                <tr>
+                                    <td><span class="badge badge-neutral">@(i++)</span></td>
+                                    <td style="font-weight:var(--weight-semibold);">@p.TipoProducto</td>
+                                    <td style="font-size:var(--text-xs);color:var(--text-muted);">@p.Modelo</td>
+                                    <td class="text-end">@p.CantidadVendida</td>
+                                </tr>
+                            }
+                            @if (!Model.ProductosVendidos.Any())
+                            {
+                                <tr><td colspan="4" class="text-center text-muted py-4" style="font-size:var(--text-xs);">Sin datos en el período.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-pie-chart me-2" style="color:var(--accent);"></i>Pedidos por estado</div>
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <canvas id="estadoChart" height="200" style="max-width:220px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── [B] Top productos por SP con selector de rango ─────────────── -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span><i class="bi bi-database me-2 text-primary"></i>Productos más vendidos</span>
+        <div class="btn-group btn-group-sm" role="group" id="rangoTopProductos">
+            <button type="button" class="btn btn-outline-secondary rango-btn" data-rango="hoy">Hoy</button>
+            <button type="button" class="btn btn-outline-secondary rango-btn" data-rango="semana">Semana</button>
+            <button type="button" class="btn btn-outline-secondary rango-btn active" data-rango="mes">Mes</button>
+            <button type="button" class="btn btn-outline-secondary rango-btn" data-rango="ano">Año</button>
+        </div>
+    </div>
+    <div class="card-body" style="padding:0!important;">
+        <div class="table-responsive">
+            <table class="table mb-0" id="tablaTopProductos">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Producto</th>
+                        <th>Modelo</th>
+                        <th class="text-end">Unidades</th>
+                        <th class="text-end">Pedidos</th>
+                    </tr>
+                </thead>
+                <tbody id="bodyTopProductos">
+                    <tr><td colspan="6" class="text-center text-muted py-3" style="font-size:var(--text-xs);">
+                        <span class="spinner-border spinner-border-sm me-1"></span>Cargando...
+                    </td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ── [B] Pedidos con pago vencido ───────────────────────────────── -->
+@if (Model.PedidosVencidosCount > 0)
+{
+    <div class="card mb-4" style="border:1px solid #dc3545;">
+        <div class="card-header" style="background:#fff5f5;color:#dc3545;">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            Pedidos pendientes con plazo de pago vencido
+            <span class="badge bg-danger ms-2">@Model.PedidosVencidosCount</span>
+            <a href="@Url.Action("Index", "Pedido", new { area = "", estado = "Pendiente" })"
+               class="btn btn-sm btn-danger float-end" style="font-size:11px;padding:2px 10px;">
+                Ver pedidos vencidos
+            </a>
+        </div>
+    </div>
+}
+
+<!-- ── [C] Bajo stock ─────────────────────────────────────────────── -->
+@if (Model.ProductosBajoStock.Any())
+{
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="bi bi-exclamation-triangle me-2 text-danger"></i>
+            Productos con stock bajo
+            <span class="badge bg-danger ms-2">@Model.StockBajoCount</span>
+        </div>
+        <div class="card-body" style="padding:0!important;">
+            <table class="table mb-0">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Modelo</th>
+                        <th class="text-center">Stock</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var prod in Model.ProductosBajoStock)
+                    {
+                        <tr>
+                            <td style="font-weight:var(--weight-semibold);">@prod.TipoProducto</td>
+                            <td style="font-size:var(--text-xs);color:var(--text-muted);">@prod.Modelo</td>
+                            <td class="text-center">
+                                @if (prod.Stock == 0)
+                                {
+                                    <span class="badge bg-danger">Sin stock</span>
+                                }
+                                else if (prod.Stock <= 3)
+                                {
+                                    <span class="badge bg-warning text-dark">@prod.Stock ud.</span>
+                                }
+                                else
+                                {
+                                    <span class="badge" style="background:#fff3cd;color:#856404;">@prod.Stock ud.</span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                <a href="/Producto/Edit/@prod.Id" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<!-- ── [D] Últimos 10 pedidos con selector de rango ───────────────── -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span><i class="bi bi-list-ul me-2"></i>Últimos pedidos</span>
+        <div class="btn-group btn-group-sm" role="group" id="rangoUltimosPedidos">
+            <button type="button" class="btn btn-outline-secondary rango-ped" data-rango="hoy">Hoy</button>
+            <button type="button" class="btn btn-outline-secondary rango-ped" data-rango="semana">Semana</button>
+            <button type="button" class="btn btn-outline-secondary rango-ped active" data-rango="mes">Mes</button>
+            <button type="button" class="btn btn-outline-secondary rango-ped" data-rango="ano">Año</button>
+        </div>
+    </div>
+    <div class="card-body" style="padding:0!important;">
+        <div class="table-responsive">
+            <table class="table mb-0" id="tablaUltimosPedidos">
+                <thead>
+                    <tr>
+                        <th>N° Seguimiento</th>
+                        <th>Cliente</th>
+                        <th class="text-end">Total</th>
+                        <th class="text-center">Estado</th>
+                        <th>Fecha</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="bodyUltimosPedidos">
+                    <tr><td colspan="6" class="text-center text-muted py-3" style="font-size:var(--text-xs);">
+                        <span class="spinner-border spinner-border-sm me-1"></span>Cargando...
+                    </td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ── Antigüedad empleados ───────────────────────────────────────── -->
+<div class="card mb-4">
+    <div class="card-header"><i class="bi bi-clock-history me-2 text-muted"></i>Antigüedad de empleados</div>
+    <div class="card-body" style="padding:0!important;">
+        <table class="table mb-0">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Incorporación</th>
+                    <th>Antigüedad</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var emp in Model.AntiguedadEmpleados)
+                {
+                    <tr>
+                        <td style="font-weight:var(--weight-medium);">@emp.Nombre</td>
+                        <td style="font-size:var(--text-xs);color:var(--text-muted);">@emp.FechaIncorporacion.ToString("dd/MM/yyyy")</td>
+                        <td><span class="badge badge-procesando">@emp.Antiguedad</span></td>
+                    </tr>
+                }
+                @if (!Model.AntiguedadEmpleados.Any())
+                {
+                    <tr><td colspan="3" class="text-center text-muted py-4" style="font-size:var(--text-xs);">Sin empleados.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ── SECCIÓN A: Envío y cobertura geográfica ─────────────────── -->
+<div class="d-flex justify-content-between align-items-center mb-2 mt-4">
+    <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">
+        <i class="bi bi-truck me-2" style="color:var(--accent);"></i>Envío y cobertura geográfica
+    </div>
+    <div class="btn-group btn-group-sm" role="group">
+        <button class="btn btn-outline-secondary rango-envio active" data-rango="mes">Mes</button>
+        <button class="btn btn-outline-secondary rango-envio" data-rango="semana">Semana</button>
+        <button class="btn btn-outline-secondary rango-envio" data-rango="hoy">Hoy</button>
+        <button class="btn btn-outline-secondary rango-envio" data-rango="ano">Año</button>
+    </div>
+</div>
+<div class="row g-3 mb-3">
+    <div class="col-lg-7">
+        <div class="card h-100">
+            <div class="card-body p-0">
+                <div style="padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--border-light);font-size:var(--text-xs);font-weight:var(--weight-semibold);color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;">
+                    CPs más activos
+                </div>
+                <div style="padding:var(--sp-4);">
+                    <canvas id="cpChart" height="180"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card h-100">
+            <div class="card-body p-0">
+                <div style="padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--border-light);font-size:var(--text-xs);font-weight:var(--weight-semibold);color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;">
+                    Modalidad de envío
+                </div>
+                <div style="padding:var(--sp-4);display:flex;justify-content:center;">
+                    <canvas id="modalidadChart" style="max-height:220px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="card mb-4">
+    <div class="card-body p-0">
+        <table class="table mb-0" id="tablaEnvio">
+            <thead>
+                <tr>
+                    <th>Transportista / Modalidad</th>
+                    <th class="text-end">Pedidos</th>
+                    <th class="text-end">Total cobrado</th>
+                    <th class="text-end">Promedio</th>
+                </tr>
+            </thead>
+            <tbody id="bodyEnvio">
+                <tr><td colspan="4" class="text-center text-muted py-3" style="font-size:12px;">Cargando...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ── SECCIÓN B: Métodos de pago ──────────────────────────────── -->
+<div class="d-flex justify-content-between align-items-center mb-2 mt-2">
+    <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">
+        <i class="bi bi-credit-card me-2" style="color:var(--accent);"></i>Métodos de pago
+    </div>
+    <div class="btn-group btn-group-sm" role="group">
+        <button class="btn btn-outline-secondary rango-pago active" data-rango="mes">Mes</button>
+        <button class="btn btn-outline-secondary rango-pago" data-rango="semana">Semana</button>
+        <button class="btn btn-outline-secondary rango-pago" data-rango="hoy">Hoy</button>
+        <button class="btn btn-outline-secondary rango-pago" data-rango="ano">Año</button>
+    </div>
+</div>
+<div class="row g-3 mb-3">
+    <div class="col-lg-7">
+        <div class="card h-100">
+            <div class="card-body p-0">
+                <div style="padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--border-light);font-size:var(--text-xs);font-weight:var(--weight-semibold);color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;">
+                    Métodos más usados
+                </div>
+                <div style="padding:var(--sp-4);">
+                    <canvas id="metodoPagoChart" height="180"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card h-100">
+            <div class="card-body p-0">
+                <div style="padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--border-light);font-size:var(--text-xs);font-weight:var(--weight-semibold);color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;">
+                    Distribución por moneda
+                </div>
+                <div style="padding:var(--sp-4);display:flex;justify-content:center;">
+                    <canvas id="monedaChart" style="max-height:220px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="card mb-4">
+    <div class="card-body p-0">
+        <table class="table mb-0">
+            <thead>
+                <tr>
+                    <th>Método de pago</th>
+                    <th>Moneda</th>
+                    <th class="text-end">Pedidos</th>
+                    <th class="text-end">Total recaudado</th>
+                    <th class="text-end">Cuotas prom.</th>
+                </tr>
+            </thead>
+            <tbody id="bodyPago">
+                <tr><td colspan="5" class="text-center text-muted py-3" style="font-size:12px;">Cargando...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ── SECCIÓN C: Ventas por moneda ────────────────────────────── -->
+<div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);margin-bottom:var(--sp-3);margin-top:var(--sp-2);">
+    <i class="bi bi-currency-exchange me-2" style="color:var(--accent);"></i>Ventas por moneda
+    <span style="font-size:var(--text-xs);color:var(--text-muted);font-weight:normal;margin-left:8px;" id="labelRangoMoneda">— período seleccionado</span>
+</div>
+<div class="row g-3 mb-4" id="cardsMoneda">
+    <div class="col-sm-6 col-xl-3">
+        <div class="metric-card">
+            <div class="metric-icon-box blue"><i class="bi bi-cash-stack"></i></div>
+            <div>
+                <div class="metric-value" id="monedaARS" style="font-size:var(--text-xl);">—</div>
+                <div class="metric-label">Pesos ARS</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="metric-card">
+            <div class="metric-icon-box green"><i class="bi bi-currency-dollar"></i></div>
+            <div>
+                <div class="metric-value" id="monedaUSDCG" style="font-size:var(--text-xl);">—</div>
+                <div class="metric-label">USD Cara grande</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="metric-card">
+            <div class="metric-icon-box orange"><i class="bi bi-currency-dollar"></i></div>
+            <div>
+                <div class="metric-value" id="monedaUSDCC" style="font-size:var(--text-xl);">—</div>
+                <div class="metric-label">USD Cara chica</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="metric-card">
+            <div class="metric-icon-box purple" style="background:rgba(91,33,182,.12);color:#5B21B6;"><i class="bi bi-credit-card"></i></div>
+            <div>
+                <div class="metric-value" id="monedaUSDT" style="font-size:var(--text-xl);">—</div>
+                <div class="metric-label">USD Tarjeta</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script>
+        const ACCENT  = '#0066CC';
+        const SUCCESS = '#1A7F3C';
+        const WARN    = '#7D5A00';
+        const DANGER  = '#B91C1C';
+        const PURPLE  = '#5B21B6';
+
+        // Chart: Ventas por día (line)
+        new Chart(document.getElementById('ventasDiaChart'), {
+            type: 'line',
+            data: {
+                labels: [@Html.Raw(string.Join(",", Model.VentasPorDia.Keys.Select(k => $"'{k}'")))],
+                datasets: [{
+                    label: 'Ventas ($)',
+                    data: [@string.Join(",", Model.VentasPorDia.Values.Select(v => v.ToString("0", System.Globalization.CultureInfo.InvariantCulture)))],
+                    borderColor: ACCENT, backgroundColor: 'rgba(0,102,204,.07)',
+                    borderWidth: 2, pointRadius: 3, pointBackgroundColor: ACCENT, fill: true, tension: .35
+                }]
+            },
+            options: {
+                responsive: true, plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,.04)' }, ticks: { callback: v => '$' + v.toLocaleString('es-AR'), font: { size: 11 } } },
+                    x: { grid: { display: false }, ticks: { maxTicksLimit: 10, font: { size: 11 } } }
+                }
+            }
+        });
+
+        // Chart: Top 5 productos (bar horizontal) — usa TipoProducto
+        new Chart(document.getElementById('topProductosChart'), {
+            type: 'bar',
+            data: {
+                labels: [@Html.Raw(string.Join(",", Model.ProductosVendidos.Take(5).Select(p => $"'{p.TipoProducto.Replace("'", "\\'")}'")))]
+,
+                datasets: [{
+                    label: 'Ventas ($)',
+                    data: [@string.Join(",", Model.ProductosVendidos.Take(5).Select(p => p.TotalVentas.ToString("0", System.Globalization.CultureInfo.InvariantCulture)))],
+                    backgroundColor: ['rgba(0,102,204,.75)','rgba(26,127,60,.75)','rgba(125,90,0,.75)','rgba(185,28,28,.75)','rgba(91,33,182,.75)'],
+                    borderRadius: 6, borderSkipped: false
+                }]
+            },
+            options: {
+                indexAxis: 'y', responsive: true, plugins: { legend: { display: false } },
+                scales: {
+                    x: { beginAtZero: true, grid: { color: 'rgba(0,0,0,.04)' }, ticks: { callback: v => '$' + v.toLocaleString('es-AR'), font: { size: 10 } } },
+                    y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+                }
+            }
+        });
+
+        // Chart: Estados de pedido (doughnut)
+        new Chart(document.getElementById('estadoChart'), {
+            type: 'doughnut',
+            data: {
+                labels: [@Html.Raw(string.Join(",", Model.PedidosPorEstado.Keys.Select(k => $"'{k}'")))],
+                datasets: [{ data: [@string.Join(",", Model.PedidosPorEstado.Values)], backgroundColor: [WARN, ACCENT, PURPLE, SUCCESS, DANGER], borderWidth: 2, borderColor: '#fff', hoverOffset: 4 }]
+            },
+            options: { plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 12 } } }, responsive: true, cutout: '60%' }
+        });
+
+        // ── [B] Top productos por SP ─────────────────────────────────
+        async function cargarTopProductos(rango) {
+            const body = document.getElementById('bodyTopProductos');
+            body.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3" style="font-size:12px;"><span class="spinner-border spinner-border-sm me-1"></span>Cargando...</td></tr>';
+
+            try {
+                const resp = await fetch(`/Admin/Dashboard/TopProductosAjax?rango=${rango}`);
+                const data = await resp.json();
+                if (!data.ok || !data.datos.length) {
+                    body.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3" style="font-size:12px;">Sin datos para este período.</td></tr>';
+                    return;
+                }
+                body.innerHTML = data.datos.map((r, i) => `
+                    <tr>
+                        <td><span class="badge badge-neutral">${i+1}</span></td>
+                        <td style="font-weight:600;">${r.producto}</td>
+                        <td style="font-size:12px;color:var(--text-muted);">${r.modelo}</td>
+                        <td class="text-end">${r.unidadesVendidas}</td>
+                        <td class="text-end">${r.cantidadPedidos}</td>
+                    </tr>`).join('');
+            } catch {
+                body.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-3" style="font-size:12px;">Error al cargar datos.</td></tr>';
+            }
+        }
+
+        document.querySelectorAll('.rango-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                document.querySelectorAll('.rango-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                cargarTopProductos(this.dataset.rango);
+            });
+        });
+
+        // ── [D] Últimos pedidos ──────────────────────────────────────
+        async function cargarUltimosPedidos(rango) {
+            const body = document.getElementById('bodyUltimosPedidos');
+            body.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3" style="font-size:12px;"><span class="spinner-border spinner-border-sm me-1"></span>Cargando...</td></tr>';
+
+            try {
+                const resp = await fetch(`/Admin/Dashboard/UltimosPedidosAjax?rango=${rango}`);
+                const data = await resp.json();
+                if (!data.ok || !data.datos.length) {
+                    body.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3" style="font-size:12px;">Sin pedidos para este período.</td></tr>';
+                    return;
+                }
+                body.innerHTML = data.datos.map(p => `
+                    <tr>
+                        <td style="font-weight:600;font-size:13px;">${p.numeroSeguimiento}</td>
+                        <td>${p.nombreCliente}</td>
+                        <td class="text-end" style="font-weight:600;">$${Math.round(p.total).toLocaleString('es-AR')}</td>
+                        <td class="text-center"><span class="badge bg-${p.badgeColor}">${p.estado}</span></td>
+                        <td style="font-size:12px;color:var(--text-muted);">${p.fecha}</td>
+                        <td class="text-end"><a href="/Pedido/Details/${p.id}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a></td>
+                    </tr>`).join('');
+            } catch {
+                body.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-3" style="font-size:12px;">Error al cargar datos.</td></tr>';
+            }
+        }
+
+        document.querySelectorAll('.rango-ped').forEach(btn => {
+            btn.addEventListener('click', function () {
+                document.querySelectorAll('.rango-ped').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                cargarUltimosPedidos(this.dataset.rango);
+            });
+        });
+
+        // ── [SECCIÓN A] Envío ────────────────────────────────────────
+        let cpChartInst, modalidadChartInst;
+
+        async function cargarEstadisticasEnvio(rango) {
+            try {
+                const resp = await fetch(`/Admin/Dashboard/EstadisticasEnvioAjax?rango=${rango}`);
+                const data = await resp.json();
+                if (!data.ok) return;
+
+                const cps = data.cps || [];
+                const mods = data.modalidades || [];
+
+                // Bar chart: CPs
+                if (cpChartInst) cpChartInst.destroy();
+                cpChartInst = new Chart(document.getElementById('cpChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: cps.map(c => c.codigoPostal),
+                        datasets: [{
+                            label: 'Pedidos',
+                            data: cps.map(c => c.cantidadPedidos),
+                            backgroundColor: 'rgba(0,102,204,.7)',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: true, ticks: { font: { size: 10 } } },
+                            x: { ticks: { font: { size: 10 } } }
+                        }
+                    }
+                });
+
+                // Donut chart: modalidades
+                if (modalidadChartInst) modalidadChartInst.destroy();
+                modalidadChartInst = new Chart(document.getElementById('modalidadChart'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: mods.map(m => m.modalidad),
+                        datasets: [{
+                            data: mods.map(m => m.cantidadPedidos),
+                            backgroundColor: [ACCENT, SUCCESS, WARN, DANGER, PURPLE, '#64748b'],
+                            borderWidth: 2, borderColor: '#fff', hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 10 } } },
+                        responsive: true, cutout: '58%'
+                    }
+                });
+
+                // Table
+                const body = document.getElementById('bodyEnvio');
+                body.innerHTML = mods.length
+                    ? mods.map(m => `<tr>
+                        <td style="font-weight:600;">${m.modalidad}</td>
+                        <td class="text-end">${m.cantidadPedidos}</td>
+                        <td class="text-end" style="color:var(--success);font-weight:600;">$${Math.round(m.totalCobrado).toLocaleString('es-AR')}</td>
+                        <td class="text-end" style="font-size:12px;color:var(--text-muted);">$${Math.round(m.promedioEnvio).toLocaleString('es-AR')}</td>
+                      </tr>`).join('')
+                    : '<tr><td colspan="4" class="text-center text-muted py-3" style="font-size:12px;">Sin datos.</td></tr>';
+            } catch { /* silent */ }
+        }
+
+        document.querySelectorAll('.rango-envio').forEach(btn => {
+            btn.addEventListener('click', function () {
+                document.querySelectorAll('.rango-envio').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                cargarEstadisticasEnvio(this.dataset.rango);
+            });
+        });
+
+        // ── [SECCIÓN B+C] Pago + Moneda ──────────────────────────────
+        let metodoPagoChartInst, monedaChartInst;
+
+        async function cargarEstadisticasPago(rango) {
+            document.getElementById('labelRangoMoneda').textContent =
+                `— ${rango === 'hoy' ? 'hoy' : rango === 'semana' ? 'últimos 7 días' : rango === 'ano' ? 'este año' : 'este mes'}`;
+            try {
+                const resp = await fetch(`/Admin/Dashboard/EstadisticasPagoAjax?rango=${rango}`);
+                const data = await resp.json();
+                if (!data.ok) return;
+
+                const metodos = data.metodos || [];
+                const monedas = data.monedas || [];
+                const ventasMoneda = data.ventasMoneda || [];
+
+                // Bar chart: métodos
+                if (metodoPagoChartInst) metodoPagoChartInst.destroy();
+                metodoPagoChartInst = new Chart(document.getElementById('metodoPagoChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: metodos.map(m => m.metodoPago),
+                        datasets: [{
+                            label: 'Pedidos',
+                            data: metodos.map(m => m.cantidadPedidos),
+                            backgroundColor: ['rgba(0,102,204,.7)','rgba(26,127,60,.7)','rgba(125,90,0,.7)','rgba(185,28,28,.7)','rgba(91,33,182,.7)','rgba(100,116,139,.7)'],
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: true, ticks: { font: { size: 10 } } },
+                            x: { ticks: { font: { size: 9 }, maxRotation: 30 } }
+                        }
+                    }
+                });
+
+                // Donut chart: monedas
+                if (monedaChartInst) monedaChartInst.destroy();
+                monedaChartInst = new Chart(document.getElementById('monedaChart'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: monedas.map(m => m.moneda),
+                        datasets: [{
+                            data: monedas.map(m => m.cantidadPedidos),
+                            backgroundColor: [ACCENT, SUCCESS, WARN, DANGER, PURPLE],
+                            borderWidth: 2, borderColor: '#fff', hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 10 } } },
+                        responsive: true, cutout: '58%'
+                    }
+                });
+
+                // Table
+                const body = document.getElementById('bodyPago');
+                body.innerHTML = metodos.length
+                    ? metodos.map(m => {
+                        const esUSD = m.monedaTotal === 'USD';
+                        const totalFmt = esUSD
+                            ? 'U$S ' + parseFloat(m.totalRecaudado).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2})
+                            : '$' + Math.round(m.totalRecaudado).toLocaleString('es-AR');
+                        return `<tr>
+                            <td style="font-weight:600;">${m.metodoPago}</td>
+                            <td><span class="badge badge-neutral" style="font-size:10px;">${m.moneda}</span></td>
+                            <td class="text-end">${m.cantidadPedidos}</td>
+                            <td class="text-end" style="color:var(--success);font-weight:600;">${totalFmt}</td>
+                            <td class="text-end" style="font-size:12px;">${parseFloat(m.promedioCuotas).toFixed(1)}</td>
+                          </tr>`;
+                    }).join('')
+                    : '<tr><td colspan="5" class="text-center text-muted py-3" style="font-size:12px;">Sin datos.</td></tr>';
+
+                // Cards [C]: ventas por moneda
+                const find = (key) => ventasMoneda.find(v => v.moneda === key);
+                const ars   = find('ARS');
+                const usdcg = find('USD_CaraGrande');
+                const usdcc = find('USD_CaraChica');
+                const usdt  = find('USD_Tarjeta');
+                document.getElementById('monedaARS').textContent  = ars   ? '$' + Math.round(ars.total).toLocaleString('es-AR') : '$0';
+                document.getElementById('monedaUSDCG').textContent = usdcg ? 'U$S ' + (usdcg.totalUSD || 0).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2}) : 'U$S 0,00';
+                document.getElementById('monedaUSDCC').textContent = usdcc ? 'U$S ' + (usdcc.totalUSD || 0).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2}) : 'U$S 0,00';
+                // USD_Tarjeta se cobra en ARS → mostrar Total en pesos
+                document.getElementById('monedaUSDT').textContent  = usdt  ? '$' + Math.round(usdt.total || 0).toLocaleString('es-AR') : '$0';
+            } catch { /* silent */ }
+        }
+
+        document.querySelectorAll('.rango-pago').forEach(btn => {
+            btn.addEventListener('click', function () {
+                document.querySelectorAll('.rango-pago').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                cargarEstadisticasPago(this.dataset.rango);
+            });
+        });
+
+        // Carga inicial
+        cargarTopProductos('mes');
+        cargarUltimosPedidos('mes');
+        cargarEstadisticasEnvio('mes');
+        cargarEstadisticasPago('mes');
+    </script>
+}

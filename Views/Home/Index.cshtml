@@ -1,0 +1,182 @@
+@{
+    ViewData["Title"] = "Inicio";
+}
+
+<!-- ── Hero Section ───────────────────────────────────────────────────────── -->
+<section class="hero-apple section-full-bleed" style="margin-top:calc(-1 * var(--sp-4));">
+    <div class="hero-parallax-inner" style="width:100%;display:flex;align-items:center;justify-content:center;padding:100px 24px;">
+        <div class="hero-apple-content">
+            <p class="hero-eyebrow">
+                <i class="bi bi-apple me-1"></i>Tu tienda oficial Apple en Argentina
+            </p>
+            <h1 class="hero-headline">
+                Lo mejor de Apple,<br />en un solo lugar.
+            </h1>
+            <p class="hero-subline">
+                iPhones, iPads, Macs, Apple Watch y accesorios.<br />
+                Garantía oficial · Envío a todo el país · 12 cuotas fijas.
+            </p>
+            <div class="hero-cta-group">
+                <a asp-controller="Producto" asp-action="Catalogo" class="btn-apple-primary">
+                    Ver catálogo
+                    <i class="bi bi-arrow-right"></i>
+                </a>
+                @if (!(User.Identity?.IsAuthenticated ?? false))
+                {
+                    <a asp-controller="Account" asp-action="Register" class="btn-apple-ghost">
+                        Crear cuenta gratis
+                        <span class="arrow">›</span>
+                    </a>
+                }
+                else
+                {
+                    <a asp-controller="Producto" asp-action="Catalogo" asp-route-buscar="iPhone"
+                       class="btn-apple-ghost">
+                        Ver iPhone
+                        <span class="arrow">›</span>
+                    </a>
+                }
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── CTA Admin ─────────────────────────────────────────────────────────── -->
+@if (User.IsInRole("Administrador") || User.IsInRole("AdminEmpleado"))
+{
+    <div class="admin-cta-banner mt-4">
+        <i class="bi bi-speedometer2"></i>
+        <div class="flex-grow-1">
+            <strong>Panel de administración disponible.</strong>
+            <p>Accedé al dashboard para ver estadísticas y gestionar el inventario.</p>
+        </div>
+        <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index"
+           class="btn-apple-primary" style="font-size:14px;padding:9px 18px;white-space:nowrap;">
+            Ir al Dashboard <i class="bi bi-arrow-right ms-1"></i>
+        </a>
+    </div>
+}
+
+<!-- ── Categorías (scroll horizontal) ────────────────────────────────────── -->
+<section class="section-categories fade-in-up">
+    <h2 class="section-categories-title">Explorá por categoría</h2>
+    <div class="categories-scroll">
+        <a href="@Url.Action("Catalogo","Producto", new{ buscar="iPhone" })" class="cat-item">
+            <div class="cat-icon-wrap">
+                <i class="bi bi-phone cat-bi"></i>
+            </div>
+            <span class="cat-label">iPhone</span>
+        </a>
+        <a href="@Url.Action("Catalogo","Producto", new{ buscar="iPad" })" class="cat-item">
+            <div class="cat-icon-wrap">
+                <i class="bi bi-tablet cat-bi"></i>
+            </div>
+            <span class="cat-label">iPad</span>
+        </a>
+        <a href="@Url.Action("Catalogo","Producto", new{ buscar="Mac" })" class="cat-item">
+            <div class="cat-icon-wrap">
+                <i class="bi bi-laptop cat-bi"></i>
+            </div>
+            <span class="cat-label">Mac</span>
+        </a>
+        <a href="@Url.Action("Catalogo","Producto", new{ buscar="Watch" })" class="cat-item">
+            <div class="cat-icon-wrap">
+                <i class="bi bi-smartwatch cat-bi"></i>
+            </div>
+            <span class="cat-label">Apple Watch</span>
+        </a>
+        <a href="@Url.Action("Catalogo","Producto", new{ buscar="AirPods" })" class="cat-item">
+            <div class="cat-icon-wrap">
+                <i class="bi bi-headphones cat-bi"></i>
+            </div>
+            <span class="cat-label">AirPods</span>
+        </a>
+        <a href="@Url.Action("Catalogo","Producto", new{ buscar="AirTag" })" class="cat-item">
+            <div class="cat-icon-wrap">
+                <i class="bi bi-broadcast-pin cat-bi"></i>
+            </div>
+            <span class="cat-label">AirTag</span>
+        </a>
+        <a href="@Url.Action("Catalogo","Producto", new{ buscar="Apple TV" })" class="cat-item">
+            <div class="cat-icon-wrap">
+                <i class="bi bi-tv cat-bi"></i>
+            </div>
+            <span class="cat-label">Apple TV 4K</span>
+        </a>
+        <a href="@Url.Action("Catalogo","Producto", new{ buscar="Vision" })" class="cat-item">
+            <div class="cat-icon-wrap">
+                <i class="bi bi-eye cat-bi"></i>
+            </div>
+            <span class="cat-label">Vision Pro</span>
+        </a>
+        <a href="@Url.Action("Catalogo","Producto")" class="cat-item">
+            <div class="cat-icon-wrap">
+                <i class="bi bi-grid-3x3-gap cat-bi"></i>
+            </div>
+            <span class="cat-label">Ver todo</span>
+        </a>
+    </div>
+</section>
+
+<!-- ── Sección "Lo último" ────────────────────────────────────────────────── -->
+<section class="section-latest section-full-bleed fade-in-up">
+    <div class="section-latest-inner">
+        <p class="section-latest-eyebrow">Lo más nuevo.</p>
+        <h2 class="section-latest-title">Tecnología Apple.<br />Disponible hoy.</h2>
+        <div class="latest-cards">
+            <a href="@Url.Action("Catalogo","Producto", new{ buscar="iPhone 16" })" class="latest-card">
+                <span class="latest-card-tag">Nuevo</span>
+                <div class="latest-card-title">iPhone 16 Pro</div>
+                <div class="latest-card-sub">Chip A18 Pro. Cámara 48 MP. Titanio.</div>
+                <div class="latest-card-cta">Ver ahora <i class="bi bi-arrow-right"></i></div>
+            </a>
+            <a href="@Url.Action("Catalogo","Producto", new{ buscar="MacBook" })" class="latest-card">
+                <span class="latest-card-tag">Disponible</span>
+                <div class="latest-card-title">MacBook Pro M4</div>
+                <div class="latest-card-sub">Chip M4 Pro. Hasta 24 horas de batería.</div>
+                <div class="latest-card-cta">Ver ahora <i class="bi bi-arrow-right"></i></div>
+            </a>
+            <a href="@Url.Action("Catalogo","Producto", new{ buscar="Apple Watch" })" class="latest-card">
+                <span class="latest-card-tag">Series 10</span>
+                <div class="latest-card-title">Apple Watch Series 10</div>
+                <div class="latest-card-sub">La pantalla más grande. El más delgado.</div>
+                <div class="latest-card-cta">Ver ahora <i class="bi bi-arrow-right"></i></div>
+            </a>
+            <a href="@Url.Action("Catalogo","Producto", new{ buscar="AirPods" })" class="latest-card">
+                <span class="latest-card-tag">Pro</span>
+                <div class="latest-card-title">AirPods Pro 2</div>
+                <div class="latest-card-sub">Cancelación activa de ruido. Audio espacial.</div>
+                <div class="latest-card-cta">Ver ahora <i class="bi bi-arrow-right"></i></div>
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- ── Beneficios ─────────────────────────────────────────────────────────── -->
+<section class="section-features section-full-bleed fade-in-up" style="margin-top:0;">
+    <div style="max-width:980px;margin:0 auto;padding:0 24px;">
+        <div class="features-grid">
+            <div class="feature-item">
+                <div class="feature-icon-wrap blue">
+                    <i class="bi bi-shield-check"></i>
+                </div>
+                <div class="feature-item-title">Garantía oficial Apple</div>
+                <p class="feature-item-desc">Todos nuestros productos incluyen garantía oficial Apple de 1 año.</p>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon-wrap green">
+                    <i class="bi bi-truck"></i>
+                </div>
+                <div class="feature-item-title">Envío a todo el país</div>
+                <p class="feature-item-desc">Despachamos a cualquier punto de Argentina. Seguí tu pedido en tiempo real.</p>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon-wrap orange">
+                    <i class="bi bi-credit-card-2-front"></i>
+                </div>
+                <div class="feature-item-title">12 cuotas fijas</div>
+                <p class="feature-item-desc">Hasta 12 cuotas fijas con tarjetas seleccionadas Visa y Mastercard.</p>
+            </div>
+        </div>
+    </div>
+</section>

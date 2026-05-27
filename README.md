@@ -337,10 +337,10 @@ Todas las variables deben estar presentes en `appsettings.Development.json` para
 
 ## 📄 Licencia
 
-Este proyecto está bajo la licencia **MIT**.
+© 2026 Juan Litterini — Todos los derechos reservados.
 
 ```
-MIT License — Copyright (c) 2025 Juan Litterini
+© 2026 Juan Litterini — Todos los derechos reservados.
 Se permite el uso, copia, modificación y distribución de este software
 con o sin restricciones, sujeto a que se incluya este aviso de copyright.
 ```

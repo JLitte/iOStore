@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using iOStore.Data;
@@ -40,22 +42,42 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
 .AddRoles<IdentityRole>()
 .AddEntityFrameworkStores<ApplicationDbContext>();
 
+// ── Forwarded Headers (HTTPS detrás de proxy IIS en MonsterASP) ─────────
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor |
+        ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
+// ── Data Protection Keys (persistencia entre reinicios del app pool IIS) ─
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(
+        Path.Combine(builder.Environment.ContentRootPath,
+        "DataProtectionKeys")))
+    .SetApplicationName("iOStore");
+
 // ── Servicio de email SMTP real (Gmail) ───────────────────────────────────
 builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
 
 // ── Servicio de códigos de verificación de 6 dígitos ─────────────────────
-// Singleton: los códigos viven mientras el proceso esté activo (adecuado para Somee single-instance)
+// Singleton: los códigos viven mientras el proceso esté activo (adecuado para hosting single-instance)
 builder.Services.AddSingleton<IVerificationCodeService, VerificationCodeService>();
 builder.Services.AddHostedService<VerificationCodeCleanupService>();
 
 // ── Cookies de autenticación ──────────────────────────────────────────────
 builder.Services.ConfigureApplicationCookie(options =>
 {
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.ExpireTimeSpan = TimeSpan.FromDays(7);
+    options.SlidingExpiration = true;
     options.LoginPath = "/Account/Login";
     options.LogoutPath = "/Account/Logout";
     options.AccessDeniedPath = "/Account/AccessDenied";
-    options.ExpireTimeSpan = TimeSpan.FromHours(8);
-    options.SlidingExpiration = true;
 });
 
 // ── Caché en memoria ──────────────────────────────────────────────────────
@@ -87,14 +109,20 @@ builder.Services.AddHttpClient();
 builder.Services.AddMemoryCache();
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromMinutes(30);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
 });
 
 var app = builder.Build();
 
 // ── Pipeline HTTP ─────────────────────────────────────────────────────────
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor |
+                       ForwardedHeaders.XForwardedProto
+});
+
 if (app.Environment.IsDevelopment())
     app.UseMigrationsEndPoint();
 else
@@ -116,9 +144,9 @@ app.UseStaticFiles();
 app.UseSerilogRequestLogging();
 app.UseStatusCodePagesWithReExecute("/Home/Error/{0}");
 app.UseRouting();
-app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseSession();
 
 app.MapControllerRoute(
     name: "areas",
@@ -133,7 +161,15 @@ app.MapRazorPages();
 // ── Seed: roles y usuario administrador ──────────────────────────────────
 using (var scope = app.Services.CreateScope())
 {
-    await SeedRolesAndAdmin(scope.ServiceProvider);
+    try
+    {
+        await SeedRolesAndAdmin(scope.ServiceProvider);
+    }
+    catch (Exception ex)
+    {
+        var seedLogger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        seedLogger.LogError(ex, "Error durante el seed inicial. Verificar cadena de conexión.");
+    }
 }
 
 app.Run();

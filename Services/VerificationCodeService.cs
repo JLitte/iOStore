@@ -4,7 +4,7 @@ namespace iOStore.Services
 {
     /// <summary>
     /// Genera y almacena códigos de verificación de 6 dígitos en memoria (por userId).
-    /// Para producción en Somee (single-instance) esto es suficiente.
+    /// Para producción en hosting single-instance esto es suficiente.
     /// Si se necesita multi-instancia, mover el almacenamiento a la base de datos.
     /// </summary>
     public interface IVerificationCodeService

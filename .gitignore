@@ -18,6 +18,9 @@ logs/
 publish/
 wwwroot/lib/
 
+## Data Protection Keys — carpeta trackeada, contenido ignorado
+DataProtectionKeys/*.xml
+
 # Configuración sensible — NO subir al repositorio
 appsettings.Development.json
 appsettings.Production.json

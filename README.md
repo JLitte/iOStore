@@ -129,7 +129,7 @@ iOStore es un e-commerce de productos Apple desarrollado en ASP.NET Core 9.0 MVC
 |---|---|
 | SQL Server | Base de datos: `iOStoreDbase1` |
 | Stored Procedures | Top productos vendidos, estadísticas de pago y envío |
-| Somee.com | Hosting con SQL Server en la nube |
+| MonsterASP.NET | Hosting con SQL Server en la nube |
 
 ### Herramientas de desarrollo
 

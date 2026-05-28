@@ -20,7 +20,6 @@ iOStore es un e-commerce de productos Apple desarrollado en ASP.NET Core 9.0 MVC
 - [Estructura del proyecto](#-estructura-del-proyecto)
 - [Cuentas de acceso para pruebas](#-cuentas-de-acceso-para-pruebas-seed)
 - [Variables de configuración requeridas](#-variables-de-configuración-requeridas)
-- [Capturas de pantalla](#-capturas-de-pantalla)
 - [Estado del proyecto y roadmap](#-estado-del-proyecto-y-roadmap)
 - [Autor](#-autor)
 - [Licencia](#-licencia)
@@ -291,12 +290,6 @@ Todas las variables deben estar presentes en `appsettings.Development.json` para
 | `CotizacionFallback:DolarTarjeta` | Cotización tarjeta de respaldo | Valor numérico en ARS |
 
 > Las configuraciones SMTP para **notificaciones de pedidos** (estado, despacho, etc.) se gestionan desde el panel Admin → Notificaciones y se guardan en la base de datos.
-
----
-
-## 📸 Capturas de pantalla
-
-> 🖼️ *Sección pendiente — agregar screenshots del catálogo, carrito, checkout, panel admin y dashboard.*
 
 ---
 
